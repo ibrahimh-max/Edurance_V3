@@ -208,22 +208,32 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   }
 
 Future<void> _onSubmit() async {
+
   final signupState = ref.read(signupProvider);
 
-  final email = '${signupState.parentMobile}@edurance.app';
-  final password = signupState.parentMobile;
+  final email =
+      '${signupState.parentMobile}@edurance.app';
 
-  final supabase = Supabase.instance.client;
+  final password =
+      signupState.parentMobile;
+
+  final supabase =
+      Supabase.instance.client;
 
   AuthResponse response;
 
   try {
-    response = await supabase.auth.signInWithPassword(
+
+    response =
+        await supabase.auth.signInWithPassword(
       email: email,
       password: password,
     );
+
   } catch (_) {
-    response = await supabase.auth.signUp(
+
+    response =
+        await supabase.auth.signUp(
       email: email,
       password: password,
       data: {
@@ -232,13 +242,16 @@ Future<void> _onSubmit() async {
         'age': signupState.age,
         'classLevel': signupState.classLevel,
         'parentMobile': signupState.parentMobile,
+        'diagnosticCompleted': false,
       },
     );
+
   }
 
   if (!mounted) return;
 
-  context.go(AppRoutes.modules);
+  context.go(AppRoutes.diagnosticTest);
+
 }
 
   // ─────────────────────────────────────────
