@@ -15,6 +15,22 @@ class _C {
   static const bg     = Color(0xFFFFF9F0);
   static const dark   = Color(0xFF1A1A2E);
   static const muted  = Color(0xFF9E9EA8);
+
+  static const subjectColors = <String, Color>{
+    'Math':    yellow,
+    'English': blue,
+    'Science': green,
+    'Hindi':   coral,
+    'EVS':     purple,
+  };
+
+  static const subjectEmojis = <String, String>{
+    'Math':    '🔢',
+    'English': '📖',
+    'Science': '🔬',
+    'Hindi':   '🕉️',
+    'EVS':     '🌍',
+  };
 }
 
 // ─────────────────────────────────────────────
@@ -43,29 +59,19 @@ class _SubjectResult {
 }
 
 // ─────────────────────────────────────────────
-//  HARDCODED DUMMY REPORT DATA
+//  QUESTION LIST (mirrors diagnostic_test_screen)
 // ─────────────────────────────────────────────
-const _results = <_SubjectResult>[
-  _SubjectResult(
-    name: 'Math', emoji: '🔢', score: 4, total: 4,
-    accent: _C.yellow, tier: _Tier.star,
-  ),
-  _SubjectResult(
-    name: 'Science', emoji: '🔬', score: 3, total: 4,
-    accent: _C.green, tier: _Tier.star,
-  ),
-  _SubjectResult(
-    name: 'English', emoji: '📖', score: 2, total: 4,
-    accent: _C.blue, tier: _Tier.almost,
-  ),
-  _SubjectResult(
-    name: 'EVS', emoji: '🌍', score: 2, total: 4,
-    accent: _C.purple, tier: _Tier.almost,
-  ),
-  _SubjectResult(
-    name: 'Hindi', emoji: '🕉️', score: 1, total: 4,
-    accent: _C.coral, tier: _Tier.learn,
-  ),
+const _reportQuestions = [
+  // ── Math (4)
+  ('Math', 2), ('Math', 2), ('Math', 1), ('Math', 2),
+  // ── English (4)
+  ('English', 2), ('English', 2), ('English', 1), ('English', 2),
+  // ── Science (4)
+  ('Science', 1), ('Science', 1), ('Science', 2), ('Science', 2),
+  // ── Hindi (4)
+  ('Hindi', 1), ('Hindi', 1), ('Hindi', 2), ('Hindi', 0),
+  // ── EVS (4)
+  ('EVS', 1), ('EVS', 1), ('EVS', 2), ('EVS', 1),
 ];
 
 // ── Section metadata
@@ -206,15 +212,50 @@ class _DiagnosticReportScreenState extends State<DiagnosticReportScreen>
 
   void _onStart() => context.go(AppRoutes.modules);
 
-  // Total score
-  int get _totalScore => _results.fold(0, (sum, r) => sum + r.score);
-  int get _totalPossible => _results.fold(0, (sum, r) => sum + r.total);
+  // ─────── COMPUTE RESULTS FROM ANSWERS ────────
+  List<_SubjectResult> _computeResults(Map<int, int> answers) {
+    final subjectCorrect = <String, int>{};
+    final subjectTotal   = <String, int>{};
+
+    for (int i = 0; i < _reportQuestions.length; i++) {
+      final (subject, correctIndex) = _reportQuestions[i];
+      subjectTotal[subject] = (subjectTotal[subject] ?? 0) + 1;
+      if (answers[i] == correctIndex) {
+        subjectCorrect[subject] = (subjectCorrect[subject] ?? 0) + 1;
+      }
+    }
+
+    _Tier getTier(int score) {
+      if (score >= 3) return _Tier.star;
+      if (score == 2) return _Tier.almost;
+      return _Tier.learn;
+    }
+
+    // Preserve a stable subject order
+    const order = ['Math', 'English', 'Science', 'Hindi', 'EVS'];
+    return order.where(subjectTotal.containsKey).map((subject) {
+      final score = subjectCorrect[subject] ?? 0;
+      final total = subjectTotal[subject] ?? 4;
+      return _SubjectResult(
+        name:   subject,
+        emoji:  _C.subjectEmojis[subject] ?? '📘',
+        score:  score,
+        total:  total,
+        accent: _C.subjectColors[subject] ?? _C.blue,
+        tier:   getTier(score),
+      );
+    }).toList();
+  }
 
   // ─────────────────────────────────────────
   //  BUILD
   // ─────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final state   = GoRouterState.of(context);
+    final answers = (state.extra as Map<int, int>?) ?? {};
+    final results = _computeResults(answers);
+
     return Scaffold(
       backgroundColor: _C.bg,
       body: Container(
@@ -261,9 +302,9 @@ class _DiagnosticReportScreenState extends State<DiagnosticReportScreen>
                 const SizedBox(height: 16),
                 _buildHero(),
                 const SizedBox(height: 28),
-                _buildScoreRing(),
+                _buildScoreRing(results),
                 const SizedBox(height: 32),
-                ..._buildSections(),
+                ..._buildSections(results),
                 const SizedBox(height: 28),
                 _buildCtaButton(),
                 const SizedBox(height: 32),
@@ -361,8 +402,10 @@ class _DiagnosticReportScreenState extends State<DiagnosticReportScreen>
   }
 
   // ─────── SCORE RING ────────
-  Widget _buildScoreRing() {
-    final pct = _totalScore / _totalPossible;
+  Widget _buildScoreRing(List<_SubjectResult> results) {
+    final totalScore    = results.fold(0, (sum, r) => sum + r.score);
+    final totalPossible = results.fold(0, (sum, r) => sum + r.total);
+    final pct = totalPossible > 0 ? totalScore / totalPossible : 0.0;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -426,7 +469,7 @@ class _DiagnosticReportScreenState extends State<DiagnosticReportScreen>
                   text: TextSpan(
                     children: [
                       TextSpan(
-                        text: '$_totalScore',
+                        text: '$totalScore',
                         style: GoogleFonts.nunito(
                           fontSize: 36,
                           fontWeight: FontWeight.w900,
@@ -435,7 +478,7 @@ class _DiagnosticReportScreenState extends State<DiagnosticReportScreen>
                         ),
                       ),
                       TextSpan(
-                        text: ' / $_totalPossible',
+                        text: ' / $totalPossible',
                         style: GoogleFonts.nunito(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
@@ -447,9 +490,9 @@ class _DiagnosticReportScreenState extends State<DiagnosticReportScreen>
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  _totalScore >= 15
+                  totalScore >= 15
                       ? 'Outstanding! You\'re a superstar! 🌟'
-                      : _totalScore >= 10
+                      : totalScore >= 10
                           ? 'Good effort! Keep going! 💪'
                           : 'Great start! Let\'s learn together! 📚',
                   style: GoogleFonts.nunito(
@@ -467,9 +510,9 @@ class _DiagnosticReportScreenState extends State<DiagnosticReportScreen>
   }
 
   // ─────── SECTIONS ────────
-  List<Widget> _buildSections() {
+  List<Widget> _buildSections(List<_SubjectResult> results) {
     final grouped = <_Tier, List<_SubjectResult>>{};
-    for (final r in _results) {
+    for (final r in results) {
       grouped.putIfAbsent(r.tier, () => []).add(r);
     }
 
@@ -537,7 +580,7 @@ class _DiagnosticReportScreenState extends State<DiagnosticReportScreen>
         const SizedBox(height: 12),
         // Subject cards
         ...List.generate(subjects.length, (i) {
-          final delay = (startIndex + i) / (_results.length + 2);
+          final delay = (startIndex + i) / (_reportQuestions.length + 2);
           return _StaggeredCard(
             animation: _cardsEntrance,
             delay: delay,

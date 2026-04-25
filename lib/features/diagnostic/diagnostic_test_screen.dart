@@ -318,10 +318,9 @@ class _DiagnosticTestScreenState extends State<DiagnosticTestScreen>
     if (_selectedOption != null) _nextBtnAnim.forward();
   }
 
-  void _onComplete() {
-    // TODO: pass _answers map via GoRouter extras once extras API is wired
-    context.go(AppRoutes.modules);
-  }
+void _onComplete() {
+  context.go(AppRoutes.diagnosticReport, extra: Map<int, int>.from(_answers));
+}
 
   // ─────────────────────────────────────────
   //  BUILD
