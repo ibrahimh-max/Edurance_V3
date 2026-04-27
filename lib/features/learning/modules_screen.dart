@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../../core/router/app_router.dart';
 import '../../providers/signup_notifier.dart';
+
 
 class _C {
   static const yellow = Color(0xFFFFD94A);

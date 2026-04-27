@@ -210,7 +210,56 @@ class _DiagnosticReportScreenState extends State<DiagnosticReportScreen>
     super.dispose();
   }
 
-  void _onStart() => context.go(AppRoutes.modules);
+Future<void> _onStart() async {
+
+  final supabase = Supabase.instance.client;
+
+  final user = supabase.auth.currentUser;
+
+  if (user == null) {
+    context.go(AppRoutes.modules);
+    return;
+  }
+
+  // Build metadata map from diagnostic results
+
+  final metadata = <String, dynamic>{
+    'diagnosticCompleted': true,
+  };
+
+  for (final result in results) {
+
+    final level = switch (result.tier) {
+      _Tier.star => 'star',
+      _Tier.almost => 'almost',
+      _Tier.learn => 'learn',
+    };
+
+    metadata['${result.name.toLowerCase()}Level'] = level;
+
+  }
+
+  try {
+
+    await supabase.auth.updateUser(
+
+      UserAttributes(
+        data: metadata,
+      ),
+
+    );
+
+  } catch (_) {
+
+    // Safe fallback: continue navigation even if metadata write fails
+
+  }
+
+  if (!mounted) return;
+
+  context.go(AppRoutes.modules);
+
+}
 
   // ─────── COMPUTE RESULTS FROM ANSWERS ────────
   List<_SubjectResult> _computeResults(Map<int, int> answers) {
