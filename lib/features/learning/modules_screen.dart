@@ -8,6 +8,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/router/app_router.dart';
 import '../../providers/signup_notifier.dart';
+import '../../data/lesson_data.dart';
+import '../../models/lesson.dart';
 
 
 class _C {
@@ -167,7 +169,15 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen>
   }
 
   void _onSubjectTap(_Subject subject) {
-    context.go(AppRoutes.teaching);
+    String moduleType = 'alphabet';
+    switch (subject.name.toLowerCase()) {
+      case 'english': moduleType = 'alphabet'; break;
+      case 'maths': moduleType = 'numbers'; break;
+      case 'science': moduleType = 'colors'; break;
+      case 'hindi': moduleType = 'rhymes'; break;
+      case 'evs': moduleType = 'shapes'; break;
+    }
+    context.go(AppRoutes.teaching, extra: moduleType);
   }
 
   @override
@@ -321,16 +331,35 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen>
   List<_Subject> _sortedSubjects() {
     final meta = Supabase.instance.client.auth.currentUser?.userMetadata;
 
-    // ── Compute real English progress from completedLessons metadata ──
+    // ── Compute real progress from completedLessons metadata ──
     final rawLessons = meta?['completedLessons'];
-    final int completedCount = rawLessons is List ? rawLessons.length : 0;
-    final double englishProgress = (completedCount / 26).clamp(0.0, 1.0);
+    final List<String> completedList = rawLessons is List ? List<String>.from(rawLessons) : [];
+
+    double getProgress(List<Lesson> lessons) {
+      if (lessons.isEmpty) return 0.0;
+      final count = lessons.where((l) => completedList.contains(l.id)).length;
+      return (count / lessons.length).clamp(0.0, 1.0);
+    }
+
+    final double englishProgress = getProgress(alphabetLessons);
+    final double mathsProgress   = getProgress(numberLessons);
+    final double scienceProgress = getProgress(colorLessons);
+    final double hindiProgress   = getProgress(rhymeLessons);
+    final double evsProgress     = getProgress(shapeLessons);
+
+    _Subject applyProgress(_Subject s) {
+      switch (s.name.toLowerCase()) {
+        case 'english': return s.copyWith(progress: englishProgress);
+        case 'maths':   return s.copyWith(progress: mathsProgress);
+        case 'science': return s.copyWith(progress: scienceProgress);
+        case 'hindi':   return s.copyWith(progress: hindiProgress);
+        case 'evs':     return s.copyWith(progress: evsProgress);
+        default:        return s;
+      }
+    }
 
     if (meta == null || meta['diagnosticCompleted'] != true) {
-      return List.of(_subjects).map((s) {
-        if (s.name == 'English') return s.copyWith(progress: englishProgress);
-        return s;
-      }).toList();
+      return List.of(_subjects).map(applyProgress).toList();
     }
 
     int priority(String level) {
@@ -349,10 +378,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen>
       return '${base}Level';
     }
 
-    final sorted = List.of(_subjects).map((s) {
-      if (s.name == 'English') return s.copyWith(progress: englishProgress);
-      return s;
-    }).toList();
+    final sorted = List.of(_subjects).map(applyProgress).toList();
     sorted.sort((a, b) {
       final pa = priority((meta[metaKey(a.name)] as String?) ?? 'almost');
       final pb = priority((meta[metaKey(b.name)] as String?) ?? 'almost');

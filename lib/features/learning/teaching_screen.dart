@@ -6,7 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/router/app_router.dart';
 import '../../services/ai/openai_service.dart';
-import 'letter_lesson_model.dart';
+import '../../data/lesson_data.dart';
+import '../../models/lesson.dart';
 
 // ─────────────────────────────────────────────
 //  BRAND TOKENS
@@ -52,17 +53,53 @@ class _TeachingScreenState extends State<TeachingScreen>
   String? _aiExplanation;
   bool _loadingExplanation = false;
 
-  LetterLesson get _lesson => kLetterLessons[_letterIndex];
+  late List<Lesson> activeLessons;
+  late String moduleType;
 
-  /// An option is correct if it starts with the current lesson letter.
-  bool _isOptionCorrect(int index) =>
-      _lesson.options[index]
-          .toLowerCase()
-          .startsWith(_lesson.letter.toLowerCase());
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    moduleType = (GoRouterState.of(context).extra as String?) ?? 'alphabet';
+    switch (moduleType) {
+      case 'numbers': activeLessons = numberLessons; break;
+      case 'colors': activeLessons = colorLessons; break;
+      case 'shapes': activeLessons = shapeLessons; break;
+      case 'rhymes': activeLessons = rhymeLessons; break;
+      case 'alphabet':
+      default:
+        activeLessons = alphabetLessons;
+        break;
+    }
+  }
+
+  Lesson get _lesson => activeLessons[_letterIndex];
+
+  bool _isOptionCorrect(int index) {
+    if (_lesson.options.isEmpty) return true;
+    final opt = _lesson.options[index].toLowerCase();
+    final t = _lesson.title.toLowerCase();
+    if (_lesson.module == 'alphabet') return opt.startsWith(t);
+    if (_lesson.module == 'colors') {
+      final correctMap = {
+        "red": "apple",
+        "blue": "sky",
+        "yellow": "banana",
+        "green": "grass",
+        "orange": "orange",
+        "purple": "grapes",
+        "black": "coal",
+        "white": "milk",
+        "brown": "chocolate",
+        "pink": "pig"
+      };
+      return opt == correctMap[t];
+    }
+    return opt == t;
+  }
 
   bool get _isCorrect =>
       _selectedOption != null && _isOptionCorrect(_selectedOption!);
-  bool get _isLastLetter => _letterIndex == kLetterLessons.length - 1;
+  bool get _isLastLetter => _letterIndex == activeLessons.length - 1;
 
   Object _avatarKey = Object();
 
@@ -107,7 +144,7 @@ Future<void> _resumeAndStartAudio() async {
       user.user?.userMetadata ?? {};
 
   final completed =
-      metadata["completedLessons"];
+      metadata["${moduleType}_completedLessons"];
 
   if (completed == null) {
     // first-time learner → start from A
@@ -118,15 +155,16 @@ Future<void> _resumeAndStartAudio() async {
   final completedLessons =
       List<String>.from(completed);
 
-  final nextIndex = kLetterLessons.indexWhere(
+  final nextIndex = activeLessons.indexWhere(
     (lesson) =>
-        !completedLessons.contains(lesson.letter),
+        !completedLessons.contains(lesson.id),
   );
 
   if (!mounted) return;
 
   if (nextIndex == -1) {
-    // All letters completed
+    // All lessons completed
+    setState(() => _letterIndex = activeLessons.length - 1);
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _showCompletionDialog(),
     );
@@ -151,13 +189,13 @@ Future<void> _resumeAndStartAudio() async {
     final response =
         await Supabase.instance.client.auth.getUser();
     final completed =
-        response.user?.userMetadata?['completedLessons'];
+        response.user?.userMetadata?['${moduleType}_completedLessons'];
 
     if (completed == null) return 0; // first-time user → start from A
 
     final completedList = List<String>.from(completed as List);
-    final nextIndex = kLetterLessons.indexWhere(
-      (lesson) => !completedList.contains(lesson.letter),
+    final nextIndex = activeLessons.indexWhere(
+      (lesson) => !completedList.contains(lesson.id),
     );
 
     return nextIndex == -1 ? null : nextIndex; // null = all done
@@ -197,7 +235,7 @@ Future<void> _resumeAndStartAudio() async {
           ),
         ),
         content: Text(
-          "You've finished all alphabet lessons 🎉",
+          "You've finished all lessons in this module 🎉",
           textAlign: TextAlign.center,
           style: GoogleFonts.nunito(
             fontSize: 16,
@@ -235,20 +273,24 @@ Future<void> _resumeAndStartAudio() async {
 
   Future<void> _speakIntro() async {
     final l = _lesson;
-    await _speak('The letter ${l.letter}.');
-    await Future.delayed(const Duration(milliseconds: 600));
-    await _speak('${l.letter} is for ${l.word}. ${l.word}!');
+    if (l.module == 'alphabet') {
+      await _speak('The letter ${l.title}.');
+      await Future.delayed(const Duration(milliseconds: 600));
+      await _speak('${l.title} is for ${l.options.isNotEmpty ? l.options[0] : ""}!');
+    } else {
+      await _speak('Let\'s learn ${l.title}.');
+    }
   }
 
   Future<void> _speakMcq() async {
-    await _speak(_lesson.mcqQuestion);
+    await _speak(_lesson.prompt);
   }
 
   Future<void> _speakFeedback() async {
     if (_isCorrect) {
       await _speak('Amazing! You got it right!');
     } else {
-      await _speak(_lesson.altExplanation);
+      await _speak('Let\'s try again!');
     }
   }
 
@@ -281,7 +323,7 @@ void _selectOption(int index) {
 
     if (isCorrect) {
       // Correct — persist completed letter to Supabase metadata
-      _saveCompletedLesson(_lesson.letter);
+      _saveCompletedLesson(_lesson.id);
       // Correct — just speak immediately
       _speakFeedback();
     } else {
@@ -294,10 +336,13 @@ void _selectOption(int index) {
     setState(() => _loadingExplanation = true);
 
     final explanation = await OpenAIService.getWrongAnswerExplanation(
-      letter: _lesson.letter,
-      correctWord: _lesson.word,
-      wrongWord: _lesson.options[wrongIndex],
-      question: _lesson.mcqQuestion,
+      lessonTitle: _lesson.title,
+      module: _lesson.module,
+      correctAnswer: _lesson.options.firstWhere(
+        (opt) => _isOptionCorrect(_lesson.options.indexOf(opt)),
+      ),
+      wrongAnswer: _lesson.options[wrongIndex],
+      question: _lesson.prompt,
     );
 
     if (!mounted) return;
@@ -315,7 +360,7 @@ void _selectOption(int index) {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
-    final existing = user.userMetadata?['completedLessons'];
+    final existing = user.userMetadata?['${moduleType}_completedLessons'];
     final List<String> lessons = existing != null
         ? List<String>.from(existing as List)
         : <String>[];
@@ -325,7 +370,7 @@ void _selectOption(int index) {
 
     await Supabase.instance.client.auth.updateUser(
       UserAttributes(
-        data: {'completedLessons': lessons},
+        data: {'${moduleType}_completedLessons': lessons},
       ),
     );
   }
@@ -369,7 +414,7 @@ void _selectOption(int index) {
 
   // ─────── TOP BAR ────────
   Widget _buildTopBar() {
-    final progress = (_letterIndex + 1) / kLetterLessons.length;
+    final progress = (_letterIndex + 1) / activeLessons.length;
 
     return Container(
       color: _C.bg,
@@ -404,7 +449,7 @@ void _selectOption(int index) {
                 Row(
                   children: [
                     Text(
-                      'English – Alphabets',
+                      '${moduleType.toUpperCase()} LESSONS',
                       style: GoogleFonts.nunito(
                         fontSize: 15,
                         fontWeight: FontWeight.w900,
@@ -466,7 +511,7 @@ void _selectOption(int index) {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '${_letterIndex + 1}/26',
+                      '${_letterIndex + 1}/${activeLessons.length}',
                       style: GoogleFonts.nunito(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
@@ -524,8 +569,8 @@ void _selectOption(int index) {
 
     switch (_phase) {
       case _Phase.intro:
-        content = _lesson.letter;
-        isEmoji = false;
+        content = _lesson.module == 'alphabet' ? _lesson.title : _lesson.emoji;
+        isEmoji = _lesson.module != 'alphabet';
         break;
       case _Phase.mcq:
         content = _lesson.emoji;
@@ -575,14 +620,15 @@ void _selectOption(int index) {
 String _speechBubbleText() {
     switch (_phase) {
       case _Phase.intro:
-        return 'This is the letter ${_lesson.letter}! '
-            'Say it with me… ${_lesson.pronunciation}!';
+        return _lesson.module == 'alphabet'
+            ? 'This is the letter ${_lesson.title}! Say it with me!'
+            : 'Let\'s learn ${_lesson.title}!';
       case _Phase.mcq:
-        return _lesson.mcqQuestion;
+        return _lesson.prompt;
       case _Phase.feedback:
         if (_isCorrect) return 'Amazing! 🌟 You got it right!';
         if (_loadingExplanation) return 'Hmm, let me explain... 🤔';
-        return _aiExplanation ?? _lesson.altExplanation;
+        return _aiExplanation ?? 'Let\'s try again!';
     }
   }
 
@@ -636,7 +682,7 @@ String _speechBubbleText() {
                       style: const TextStyle(fontSize: 64)),
                   const SizedBox(height: 12),
                   Text(
-                    _lesson.word,
+                    _lesson.title,
                     style: GoogleFonts.nunito(
                       fontSize: 32,
                       fontWeight: FontWeight.w900,
@@ -645,7 +691,7 @@ String _speechBubbleText() {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '${_lesson.letter} is for ${_lesson.word}',
+                    _lesson.prompt,
                     style: GoogleFonts.nunito(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -675,7 +721,7 @@ String _speechBubbleText() {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _lesson.mcqQuestion,
+            _lesson.prompt,
             style: GoogleFonts.nunito(
               fontSize: 17,
               fontWeight: FontWeight.w800,
@@ -706,7 +752,7 @@ String _speechBubbleText() {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _lesson.mcqQuestion,
+            _lesson.prompt,
             style: GoogleFonts.nunito(
               fontSize: 17,
               fontWeight: FontWeight.w800,
@@ -767,7 +813,7 @@ String _speechBubbleText() {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          children: List.generate(kLetterLessons.length, (i) {
+          children: List.generate(activeLessons.length, (i) {
             final isCurrent   = i == _letterIndex;
             final isCompleted = i < _letterIndex;
 

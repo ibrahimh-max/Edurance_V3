@@ -81,21 +81,23 @@ class OpenAIService {
   static Future<String>
       getWrongAnswerExplanation({
 
-    required String letter,
-    required String correctWord,
-    required String wrongWord,
+    required String lessonTitle,
+    required String module,
+    required String correctAnswer,
+    required String wrongAnswer,
     required String question,
 
   }) async {
 
     final prompt =
 
-        "A child aged 3–8 is learning alphabets.\n"
+        "A child aged 3–8 is learning about $module.\n"
+        "Topic: $lessonTitle\n"
         "Question: $question\n"
-        "Correct answer: $correctWord\n"
-        "Child selected: $wrongWord\n"
-        "Explain kindly and simply why '$wrongWord' is incorrect "
-        "and why '$correctWord' is correct for letter '$letter'.";
+        "Correct answer: $correctAnswer\n"
+        "Child selected: $wrongAnswer\n"
+        "Explain kindly and simply why '$wrongAnswer' is incorrect "
+        "and why '$correctAnswer' is correct.";
 
     return await sendMessage(prompt);
 
