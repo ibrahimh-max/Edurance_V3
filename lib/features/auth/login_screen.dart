@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/router/app_router.dart';
 
 // ─────────────────────────────────────────────
@@ -110,22 +111,14 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  // ── Stubs
+  // Routes the user based on current Supabase session state.
   void _onLogin() {
-    // TODO: wire to Supabase auth
-    FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '🔐 Logging in…',
-          style: GoogleFonts.nunito(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: _C.coral,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      context.go(AppRoutes.modules);
+    } else {
+      context.go(AppRoutes.signup);
+    }
   }
 
   void _onSignupTap() => context.go(AppRoutes.signup);
@@ -293,7 +286,7 @@ class _LoginScreenState extends State<LoginScreen>
             ),
             const SizedBox(height: 4),
             Text(
-              'Log in to continue your learning journey',
+              'Continue as existing learner',
               style: GoogleFonts.nunito(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,

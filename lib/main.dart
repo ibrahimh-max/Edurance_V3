@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/router/app_router.dart';
+import 'providers/session_bootstrap_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,11 +26,14 @@ try {
   );
 }
 
-class EduranceApp extends StatelessWidget {
+class EduranceApp extends ConsumerWidget {
   const EduranceApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Hydrate SignupState from Supabase metadata on every startup / refresh.
+    ref.watch(sessionBootstrapProvider);
+
     return MaterialApp.router(
       title: 'Edurance',
       debugShowCheckedModeBanner: false,
@@ -44,4 +48,4 @@ class EduranceApp extends StatelessWidget {
       ),
     );
   }
-}
+}

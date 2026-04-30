@@ -23,9 +23,7 @@ class OpenAIService {
   ) async {
 
     if (!isConfigured) {
-      throw Exception(
-        'Missing OPENAI_API_KEY',
-      );
+      return "Let's think about the correct answer together!";
     }
 
     final response = await http.post(
