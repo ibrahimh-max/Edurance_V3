@@ -18,19 +18,19 @@ class _C {
   static const muted  = Color(0xFF9E9EA8);
 
   static const subjectColors = <String, Color>{
-    'Math':    yellow,
-    'English': blue,
-    'Science': green,
-    'Hindi':   coral,
-    'EVS':     purple,
+    'alphabet': yellow,
+    'numbers':  blue,
+    'colors':   green,
+    'shapes':   coral,
+    'rhymes':   purple,
   };
 
   static const subjectEmojis = <String, String>{
-    'Math':    '🔢',
-    'English': '📖',
-    'Science': '🔬',
-    'Hindi':   '🕉️',
-    'EVS':     '🌍',
+    'alphabet': '📖',
+    'numbers':  '🔢',
+    'colors':   '🎨',
+    'shapes':   '🔺',
+    'rhymes':   '🎵',
   };
 }
 
@@ -63,16 +63,16 @@ class _SubjectResult {
 //  QUESTION LIST (mirrors diagnostic_test_screen)
 // ─────────────────────────────────────────────
 const _reportQuestions = [
-  // ── Math (4)
-  ('Math', 2), ('Math', 2), ('Math', 1), ('Math', 2),
-  // ── English (4)
-  ('English', 2), ('English', 2), ('English', 1), ('English', 2),
-  // ── Science (4)
-  ('Science', 1), ('Science', 1), ('Science', 2), ('Science', 2),
-  // ── Hindi (4)
-  ('Hindi', 1), ('Hindi', 1), ('Hindi', 2), ('Hindi', 0),
-  // ── EVS (4)
-  ('EVS', 1), ('EVS', 1), ('EVS', 2), ('EVS', 1),
+  // ── Alphabet (3)
+  ('alphabet', 0), ('alphabet', 0), ('alphabet', 2),
+  // ── Numbers (3)
+  ('numbers', 2), ('numbers', 0), ('numbers', 1),
+  // ── Colors (3)
+  ('colors', 0), ('colors', 0), ('colors', 2),
+  // ── Shapes (3)
+  ('shapes', 0), ('shapes', 0), ('shapes', 2),
+  // ── Rhymes (2)
+  ('rhymes', 0), ('rhymes', 0),
 ];
 
 // ── Section metadata
@@ -289,14 +289,15 @@ Future<void> _onStart() async {
       }
     }
 
-    _Tier getTier(int score) {
-      if (score >= 3) return _Tier.star;
-      if (score == 2) return _Tier.almost;
+    _Tier getTier(int score, int total) {
+      if (total == 3 && score == 3) return _Tier.star;
+      if (total == 2 && score == 2) return _Tier.star;
+      if (score >= total - 1) return _Tier.almost;
       return _Tier.learn;
     }
 
     // Preserve a stable subject order
-    const order = ['Math', 'English', 'Science', 'Hindi', 'EVS'];
+    const order = ['alphabet', 'numbers', 'colors', 'shapes', 'rhymes'];
     return order.where(subjectTotal.containsKey).map((subject) {
       final score = subjectCorrect[subject] ?? 0;
       final total = subjectTotal[subject] ?? 4;
@@ -306,7 +307,7 @@ Future<void> _onStart() async {
         score:  score,
         total:  total,
         accent: _C.subjectColors[subject] ?? _C.blue,
-        tier:   getTier(score),
+        tier:   getTier(score, total),
       );
     }).toList();
   }

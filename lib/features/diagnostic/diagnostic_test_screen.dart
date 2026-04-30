@@ -17,27 +17,27 @@ class _C {
   static const muted  = Color(0xFF9E9EA8);
 
   static const subjectColors = {
-    'Math':    yellow,
-    'English': blue,
-    'Science': green,
-    'Hindi':   coral,
-    'EVS':     purple,
+    'alphabet': yellow,
+    'numbers':  blue,
+    'colors':   green,
+    'shapes':   coral,
+    'rhymes':   purple,
   };
 
   static const subjectEmojis = {
-    'Math':    '🔢',
-    'English': '📖',
-    'Science': '🔬',
-    'Hindi':   '🕉️',
-    'EVS':     '🌍',
+    'alphabet': '📖',
+    'numbers':  '🔢',
+    'colors':   '🎨',
+    'shapes':   '🔺',
+    'rhymes':   '🎵',
   };
 
   static const subjectGradients = {
-    'Math':    [Color(0xFFFFF3CC), Color(0xFFFFEA9F)],
-    'English': [Color(0xFFD6F4FF), Color(0xFFB8EEFF)],
-    'Science': [Color(0xFFD5F8E5), Color(0xFFB6F0CF)],
-    'Hindi':   [Color(0xFFFFDFDF), Color(0xFFFFCCCC)],
-    'EVS':     [Color(0xFFEDE0FF), Color(0xFFDBC8FF)],
+    'alphabet': [Color(0xFFFFF3CC), Color(0xFFFFEA9F)],
+    'numbers':  [Color(0xFFD6F4FF), Color(0xFFB8EEFF)],
+    'colors':   [Color(0xFFD5F8E5), Color(0xFFB6F0CF)],
+    'shapes':   [Color(0xFFFFDFDF), Color(0xFFFFCCCC)],
+    'rhymes':   [Color(0xFFEDE0FF), Color(0xFFDBC8FF)],
   };
 
   static const optionLabels = ['A', 'B', 'C', 'D'];
@@ -47,13 +47,13 @@ class _C {
 //  QUESTION MODEL
 // ─────────────────────────────────────────────
 class _Question {
-  final String subject;
+  final String module;
   final String text;
   final List<String> options;
   final int correctIndex;
 
   const _Question({
-    required this.subject,
+    required this.module,
     required this.text,
     required this.options,
     required this.correctIndex,
@@ -64,135 +64,115 @@ class _Question {
 //  HARDCODED 20 QUESTIONS (4 per subject)
 // ─────────────────────────────────────────────
 const _questions = <_Question>[
-  // ── Math (4)
-  _Question(
-    subject: 'Math',
-    text: 'What is 7 + 8?',
-    options: ['13', '14', '15', '16'],
-    correctIndex: 2,
-  ),
-  _Question(
-    subject: 'Math',
-    text: 'Which shape has 4 equal sides?',
-    options: ['Triangle', 'Rectangle', 'Square', 'Circle'],
-    correctIndex: 2,
-  ),
-  _Question(
-    subject: 'Math',
-    text: 'What comes after 49?',
-    options: ['48', '50', '51', '59'],
-    correctIndex: 1,
-  ),
-  _Question(
-    subject: 'Math',
-    text: 'How many tens are in 80?',
-    options: ['6', '7', '8', '9'],
-    correctIndex: 2,
-  ),
 
-  // ── English (4)
-  _Question(
-    subject: 'English',
-    text: 'Which word is a noun?',
-    options: ['Run', 'Happy', 'Dog', 'Quickly'],
-    correctIndex: 2,
-  ),
-  _Question(
-    subject: 'English',
-    text: 'Choose the correct spelling:',
-    options: ['Scool', 'Schol', 'School', 'Skool'],
-    correctIndex: 2,
-  ),
-  _Question(
-    subject: 'English',
-    text: '"The cat sat ___ the mat." Pick the word.',
-    options: ['in', 'on', 'at', 'up'],
-    correctIndex: 1,
-  ),
-  _Question(
-    subject: 'English',
-    text: 'What is the plural of "child"?',
-    options: ['Childs', 'Childrens', 'Children', 'Childes'],
-    correctIndex: 2,
-  ),
+/// ALPHABET (3)
 
-  // ── Science (4)
-  _Question(
-    subject: 'Science',
-    text: 'Which planet is closest to the Sun?',
-    options: ['Venus', 'Mercury', 'Earth', 'Mars'],
-    correctIndex: 1,
-  ),
-  _Question(
-    subject: 'Science',
-    text: 'What do plants need to make food?',
-    options: ['Moonlight', 'Sunlight', 'Starlight', 'Lamplight'],
-    correctIndex: 1,
-  ),
-  _Question(
-    subject: 'Science',
-    text: 'Which body part helps us breathe?',
-    options: ['Heart', 'Stomach', 'Lungs', 'Kidneys'],
-    correctIndex: 2,
-  ),
-  _Question(
-    subject: 'Science',
-    text: 'Water boils at ___ °C.',
-    options: ['50', '75', '100', '150'],
-    correctIndex: 2,
-  ),
+_Question(
+module: "alphabet",
+text: "Which one is the letter A?",
+options: ["A","B","3","D"],
+correctIndex: 0
+),
 
-  // ── Hindi (4)
-  _Question(
-    subject: 'Hindi',
-    text: '"गाय" किस प्रकार का शब्द है?',
-    options: ['सर्वनाम', 'संज्ञा', 'क्रिया', 'विशेषण'],
-    correctIndex: 1,
-  ),
-  _Question(
-    subject: 'Hindi',
-    text: '"क" से "ज्ञ" तक कितने अक्षर हैं?',
-    options: ['33', '36', '40', '44'],
-    correctIndex: 1,
-  ),
-  _Question(
-    subject: 'Hindi',
-    text: '"सेब" कैसा फल है?',
-    options: ['खट्टा', 'कड़वा', 'मीठा', 'नमकीन'],
-    correctIndex: 2,
-  ),
-  _Question(
-    subject: 'Hindi',
-    text: '"पानी" का पर्यायवाची क्या है?',
-    options: ['जल', 'हवा', 'आग', 'मिट्टी'],
-    correctIndex: 0,
-  ),
+_Question(
+module: "alphabet",
+text: "Which word starts with B?",
+options: ["Ball","Cat","Dog","Sun"],
+correctIndex: 0
+),
 
-  // ── EVS (4)
-  _Question(
-    subject: 'EVS',
-    text: 'Which of these is a natural resource?',
-    options: ['Plastic', 'Water', 'Computer', 'Paper'],
-    correctIndex: 1,
-  ),
-  _Question(
-    subject: 'EVS',
-    text: 'What does a seed need to grow?',
-    options: ['Only water', 'Water & sunlight', 'Only soil', 'Only air'],
-    correctIndex: 1,
-  ),
-  _Question(
-    subject: 'EVS',
-    text: 'Which festival is called the "Festival of Lights"?',
-    options: ['Holi', 'Eid', 'Diwali', 'Christmas'],
-    correctIndex: 2,
-  ),
-  _Question(
-    subject: 'EVS',
-    text: 'Where does a fish live?',
-    options: ['Tree', 'Water', 'Sky', 'Underground'],
-    correctIndex: 1,
-  ),
+_Question(
+module: "alphabet",
+text: "Which one is NOT a letter?",
+options: ["A","M","4","Z"],
+correctIndex: 2
+),
+
+/// NUMBERS (3)
+
+_Question(
+module: "numbers",
+text: "Which number is 3?",
+options: ["1","2","3","5"],
+correctIndex: 2
+),
+
+_Question(
+module: "numbers",
+text: "Which group shows four?",
+options: ["••••","••","•••","•••••"],
+correctIndex: 0
+),
+
+_Question(
+module: "numbers",
+text: "Which number is bigger?",
+options: ["2","5","1","3"],
+correctIndex: 1
+),
+
+/// COLORS (3)
+
+_Question(
+module: "colors",
+text: "Which one is red?",
+options: ["Apple","Sky","Grass","Banana"],
+correctIndex: 0
+),
+
+_Question(
+module: "colors",
+text: "Which fruit is yellow?",
+options: ["Banana","Apple","Orange","Grapes"],
+correctIndex: 0
+),
+
+_Question(
+module: "colors",
+text: "Which one is NOT blue?",
+options: ["Sky","Ocean","Banana","River"],
+correctIndex: 2
+),
+
+/// SHAPES (3)
+
+_Question(
+module: "shapes",
+text: "Which shape is a circle?",
+options: ["⚪","⬛","🔺","⭐"],
+correctIndex: 0
+),
+
+_Question(
+module: "shapes",
+text: "Which shape has 3 sides?",
+options: ["Triangle","Circle","Square","Oval"],
+correctIndex: 0
+),
+
+_Question(
+module: "shapes",
+text: "Which one is NOT a square?",
+options: ["⬛","🟦","⚪","🟥"],
+correctIndex: 2
+),
+
+/// RHYMES (2)
+
+_Question(
+module: "rhymes",
+text: "Twinkle twinkle little ___",
+options: ["star","cat","sun","tree"],
+correctIndex: 0
+),
+
+_Question(
+module: "rhymes",
+text: "Have you heard this rhyme before?",
+options: ["Yes","No","Maybe","Not sure"],
+correctIndex: 0
+),
+
 ];
 
 // ─────────────────────────────────────────────
@@ -276,10 +256,10 @@ class _DiagnosticTestScreenState extends State<DiagnosticTestScreen>
   }
 
   _Question get _currentQ => _questions[_currentIndex];
-  Color get _accent => _C.subjectColors[_currentQ.subject] ?? _C.blue;
-  String get _emoji => _C.subjectEmojis[_currentQ.subject] ?? '📚';
+  Color get _accent => _C.subjectColors[_currentQ.module] ?? _C.blue;
+  String get _emoji => _C.subjectEmojis[_currentQ.module] ?? '📚';
   List<Color> get _gradColors =>
-      _C.subjectGradients[_currentQ.subject] ?? [_C.bg, _C.bg];
+      _C.subjectGradients[_currentQ.module] ?? [_C.bg, _C.bg];
   bool get _isLast => _currentIndex == _questions.length - 1;
 
   void _selectOption(int idx) {
@@ -521,7 +501,7 @@ void _onComplete() {
         child: FadeTransition(opacity: anim, child: child),
       ),
       child: Container(
-        key: ValueKey('${_currentQ.subject}-$_currentIndex'),
+        key: ValueKey('${_currentQ.module}-$_currentIndex'),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         decoration: BoxDecoration(
           color: _accent.withValues(alpha: 0.15),
@@ -534,7 +514,7 @@ void _onComplete() {
             Text(_emoji, style: const TextStyle(fontSize: 18)),
             const SizedBox(width: 8),
             Text(
-              _currentQ.subject,
+              _currentQ.module,
               style: GoogleFonts.nunito(
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
