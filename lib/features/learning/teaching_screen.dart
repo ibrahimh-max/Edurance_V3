@@ -267,7 +267,10 @@ Future<void> _resumeAndStartAudio() async {
 
 
   Future<void> _speak(String text) async {
-    await _tts.stop();
+    if (!_ttsReady) {
+      await _setupTts();
+    }
+    await _tts.awaitSpeakCompletion(true);
     await _tts.speak(text);
   }
 
@@ -276,27 +279,27 @@ Future<void> _resumeAndStartAudio() async {
     switch (l.module) {
       case 'alphabet':
         await _speak('Let’s learn alphabets.');
-        await Future.delayed(const Duration(milliseconds: 600));
+        await Future.delayed(const Duration(milliseconds: 300));
         await _speak('This is the letter ${l.title}.');
         break;
       case 'numbers':
         await _speak('Let’s learn numbers.');
-        await Future.delayed(const Duration(milliseconds: 600));
+        await Future.delayed(const Duration(milliseconds: 300));
         await _speak('This is number ${l.title}.');
         break;
       case 'colors':
         await _speak('Let’s learn colors.');
-        await Future.delayed(const Duration(milliseconds: 600));
+        await Future.delayed(const Duration(milliseconds: 300));
         await _speak('This is ${l.title}.');
         break;
       case 'shapes':
         await _speak('Let’s learn shapes.');
-        await Future.delayed(const Duration(milliseconds: 600));
+        await Future.delayed(const Duration(milliseconds: 300));
         await _speak('This is a ${l.title}.');
         break;
       case 'rhymes':
         await _speak('Let’s learn a rhyme.');
-        await Future.delayed(const Duration(milliseconds: 600));
+        await Future.delayed(const Duration(milliseconds: 300));
         await _speak(l.prompt);
         break;
     }
