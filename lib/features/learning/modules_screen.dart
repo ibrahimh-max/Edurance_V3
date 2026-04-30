@@ -81,7 +81,7 @@ const _subjects = <_Subject>[
   _Subject(
     name: 'Maths',
     emoji: '🔢',
-    currentTopic: 'Numbers 1–20',
+    currentTopic: 'Primary Colours',
     progress: 0.0,
     accent: _C.coral,
     accentLight: Color(0xFFFFE5E5),
@@ -91,7 +91,7 @@ const _subjects = <_Subject>[
   _Subject(
     name: 'Science',
     emoji: '🔬',
-    currentTopic: 'Plants & Animals',
+    currentTopic: 'Basic Shapes',
     progress: 0.0,
     accent: _C.green,
     accentLight: Color(0xFFDFFFF0),
@@ -101,7 +101,7 @@ const _subjects = <_Subject>[
   _Subject(
     name: 'Hindi',
     emoji: '📝',
-    currentTopic: 'Swar – अ आ इ',
+    currentTopic: 'Short Poems',
     progress: 0.0,
     accent: _C.purple,
     accentLight: Color(0xFFF0E6FF),
