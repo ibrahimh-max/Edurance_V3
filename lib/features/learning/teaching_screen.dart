@@ -73,38 +73,6 @@ class _TeachingScreenState extends State<TeachingScreen>
   void initState() {
     super.initState();
 
-    // ── Resume from next incomplete letter (fresh fetch) ──
-    Future.microtask(() async {
-      final user =
-          await Supabase.instance.client.auth.getUser();
-
-      final completed =
-          user.user?.userMetadata?['completedLessons'];
-
-      if (completed == null) return;
-
-      final completedList =
-          List<String>.from(completed as List);
-
-      final nextIndex =
-          kLetterLessons.indexWhere(
-            (lesson) =>
-                !completedList.contains(lesson.letter),
-          );
-
-      if (!mounted) return;
-
-      if (nextIndex != -1) {
-        setState(() {
-          _letterIndex = nextIndex;
-        });
-      } else {
-        WidgetsBinding.instance.addPostFrameCallback(
-          (_) => _showCompletionDialog(),
-        );
-      }
-    });
-
     _bounceCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1100),
@@ -113,7 +81,71 @@ class _TeachingScreenState extends State<TeachingScreen>
       CurvedAnimation(parent: _bounceCtrl, curve: Curves.easeInOut),
     );
 
-    _initTts();
+    // Set up TTS engine and restore the correct lesson index,
+    // then speak intro ONLY after both are done.
+    _resumeAndStartAudio();
+  }
+
+  /// Fetches the fresh resume index from Supabase, sets up TTS,
+  /// then speaks the intro for the correct letter — in that order.
+  Future<void> _resumeAndStartAudio() async {
+    // 1) Run resume fetch and TTS setup concurrently.
+    final results = await Future.wait([
+      _fetchResumeIndex(),
+      _setupTts(),
+    ]);
+
+    if (!mounted) return;
+
+    // 2) Apply the resolved index (null means start from 0).
+    final resumeIndex = results[0] as int?;
+    if (resumeIndex == null) {
+      // All letters done — show completion dialog instead of speaking.
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showCompletionDialog(),
+      );
+      return;
+    }
+    if (resumeIndex != _letterIndex) {
+      setState(() => _letterIndex = resumeIndex);
+    }
+
+    // 3) Speak intro for the now-correct letter.
+    await _startLessonAudio();
+  }
+
+  /// Returns the next incomplete letter index, or null if all are done.
+  /// Returns 0 if no completedLessons metadata exists yet.
+  Future<int?> _fetchResumeIndex() async {
+    final response =
+        await Supabase.instance.client.auth.getUser();
+    final completed =
+        response.user?.userMetadata?['completedLessons'];
+
+    if (completed == null) return 0; // first-time user → start from A
+
+    final completedList = List<String>.from(completed as List);
+    final nextIndex = kLetterLessons.indexWhere(
+      (lesson) => !completedList.contains(lesson.letter),
+    );
+
+    return nextIndex == -1 ? null : nextIndex; // null = all done
+  }
+
+  /// Configures the TTS engine (no speech).
+  Future<void> _setupTts() async {
+    await _tts.setLanguage('en-IN');
+    await _tts.setVoice({"name": "en-in-x-ene-local", "locale": "en-IN"});
+    await _tts.setSpeechRate(0.38);
+    await _tts.setVolume(1.0);
+    await _tts.setPitch(1.35);
+    await _tts.awaitSpeakCompletion(true);
+    if (mounted) setState(() => _ttsReady = true);
+  }
+
+  /// Speaks the intro for the current lesson (called after index is set).
+  Future<void> _startLessonAudio() async {
+    await _speakIntro();
   }
 
   void _showCompletionDialog() {
@@ -163,17 +195,7 @@ class _TeachingScreenState extends State<TeachingScreen>
     );
   }
 
-  Future<void> _initTts() async {
-    await _tts.setLanguage('en-IN');
-    await _tts.setVoice({"name": "en-in-x-ene-local", "locale": "en-IN"});
-    await _tts.setSpeechRate(0.38);   // slower and clearer for young children
-    await _tts.setVolume(1.0);
-    await _tts.setPitch(1.35);        // warmer, more expressive pitch
-    await _tts.awaitSpeakCompletion(true); // prevent letter overlap on quick taps
-    setState(() => _ttsReady = true);
-    // Speak the first letter on load
-    await _speakIntro();
-  }
+
 
   Future<void> _speak(String text) async {
     await _tts.stop();
@@ -661,26 +683,34 @@ String _speechBubbleText() {
             ),
           ),
           const SizedBox(height: 14),
-          ...List.generate(_lesson.options.length, (i) {
-            final _OptionState state;
-            if (_isOptionCorrect(i)) {
-              state = _OptionState.correct;
-            } else if (i == _selectedOption) {
-              state = _OptionState.wrong;
-            } else {
-              state = _OptionState.idle;
-            }
+          // Scrollable options — prevents overflow when explanation is long
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: List.generate(_lesson.options.length, (i) {
+                  final _OptionState state;
+                  if (_isOptionCorrect(i)) {
+                    state = _OptionState.correct;
+                  } else if (i == _selectedOption) {
+                    state = _OptionState.wrong;
+                  } else {
+                    state = _OptionState.idle;
+                  }
 
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _OptionButton(
-                label: _lesson.options[i],
-                state: state,
-                onTap: null,
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _OptionButton(
+                      label: _lesson.options[i],
+                      state: state,
+                      onTap: null,
+                    ),
+                  );
+                }),
               ),
-            );
-          }),
-          const Spacer(),
+            ),
+          ),
+          const SizedBox(height: 12),
           _isLastLetter
               ? _GreenButton(
                   label: "I'm done! 🎉",
