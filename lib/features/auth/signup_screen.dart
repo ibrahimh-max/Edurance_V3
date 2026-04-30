@@ -541,6 +541,21 @@ Future<void> _onSubmit() async {
               ],
             ),
           ),
+          // Login link — only on the first page
+          if (_currentPage == 0) ...[
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => context.go(AppRoutes.login),
+              child: Text(
+                'Already have an account? Login',
+                style: GoogleFonts.nunito(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: _C.muted,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

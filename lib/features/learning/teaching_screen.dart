@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -52,8 +53,15 @@ class _TeachingScreenState extends State<TeachingScreen>
   bool _loadingExplanation = false;
 
   LetterLesson get _lesson => kLetterLessons[_letterIndex];
+
+  /// An option is correct if it starts with the current lesson letter.
+  bool _isOptionCorrect(int index) =>
+      _lesson.options[index]
+          .toLowerCase()
+          .startsWith(_lesson.letter.toLowerCase());
+
   bool get _isCorrect =>
-      _selectedOption != null && _selectedOption == _lesson.correctIndex;
+      _selectedOption != null && _isOptionCorrect(_selectedOption!);
   bool get _isLastLetter => _letterIndex == kLetterLessons.length - 1;
 
   Object _avatarKey = Object();
@@ -65,6 +73,38 @@ class _TeachingScreenState extends State<TeachingScreen>
   void initState() {
     super.initState();
 
+    // ── Resume from next incomplete letter (fresh fetch) ──
+    Future.microtask(() async {
+      final user =
+          await Supabase.instance.client.auth.getUser();
+
+      final completed =
+          user.user?.userMetadata?['completedLessons'];
+
+      if (completed == null) return;
+
+      final completedList =
+          List<String>.from(completed as List);
+
+      final nextIndex =
+          kLetterLessons.indexWhere(
+            (lesson) =>
+                !completedList.contains(lesson.letter),
+          );
+
+      if (!mounted) return;
+
+      if (nextIndex != -1) {
+        setState(() {
+          _letterIndex = nextIndex;
+        });
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _showCompletionDialog(),
+        );
+      }
+    });
+
     _bounceCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1100),
@@ -74,6 +114,53 @@ class _TeachingScreenState extends State<TeachingScreen>
     );
 
     _initTts();
+  }
+
+  void _showCompletionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          'Great job! 🎉',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.nunito(
+            fontWeight: FontWeight.w900,
+            fontSize: 22,
+            color: _C.dark,
+          ),
+        ),
+        content: Text(
+          "You've finished all alphabet lessons 🎉",
+          textAlign: TextAlign.center,
+          style: GoogleFonts.nunito(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: _C.muted,
+          ),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              context.go(AppRoutes.modules);
+            },
+            child: Text(
+              'Back to Modules',
+              style: GoogleFonts.nunito(
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+                color: _C.green,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _initTts() async {
@@ -137,9 +224,11 @@ void _selectOption(int index) {
       _aiExplanation  = null;
     });
 
-    final isCorrect = index == _lesson.correctIndex;
+    final isCorrect = _isOptionCorrect(index);
 
     if (isCorrect) {
+      // Correct — persist completed letter to Supabase metadata
+      _saveCompletedLesson(_lesson.letter);
       // Correct — just speak immediately
       _speakFeedback();
     } else {
@@ -167,6 +256,25 @@ void _selectOption(int index) {
 
     // Speak the AI-generated explanation
     await _speak(explanation);
+  }
+
+  Future<void> _saveCompletedLesson(String letter) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    final existing = user.userMetadata?['completedLessons'];
+    final List<String> lessons = existing != null
+        ? List<String>.from(existing as List)
+        : <String>[];
+
+    if (lessons.contains(letter)) return; // avoid duplicates
+    lessons.add(letter);
+
+    await Supabase.instance.client.auth.updateUser(
+      UserAttributes(
+        data: {'completedLessons': lessons},
+      ),
+    );
   }
 
   void _goToNextLetter() {
@@ -555,7 +663,7 @@ String _speechBubbleText() {
           const SizedBox(height: 14),
           ...List.generate(_lesson.options.length, (i) {
             final _OptionState state;
-            if (i == _lesson.correctIndex) {
+            if (_isOptionCorrect(i)) {
               state = _OptionState.correct;
             } else if (i == _selectedOption) {
               state = _OptionState.wrong;

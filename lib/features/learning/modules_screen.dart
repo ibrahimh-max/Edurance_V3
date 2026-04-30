@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/router/app_router.dart';
 import '../../providers/signup_notifier.dart';
@@ -40,6 +41,17 @@ class _Subject {
     required this.accentDark,
     required this.gradient,
   });
+
+  _Subject copyWith({double? progress}) => _Subject(
+    name: name,
+    emoji: emoji,
+    currentTopic: currentTopic,
+    progress: progress ?? this.progress,
+    accent: accent,
+    accentLight: accentLight,
+    accentDark: accentDark,
+    gradient: gradient,
+  );
 }
 
 const _subjects = <_Subject>[
@@ -47,7 +59,7 @@ const _subjects = <_Subject>[
     name: 'English',
     emoji: '📖',
     currentTopic: 'Alphabets A–Z',
-    progress: 0.15,
+    progress: 0.0,
     accent: _C.blue,
     accentLight: Color(0xFFDFF6FF),
     accentDark: Color(0xFF1AAEE6),
@@ -306,11 +318,55 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen>
     );
   }
 
+  List<_Subject> _sortedSubjects() {
+    final meta = Supabase.instance.client.auth.currentUser?.userMetadata;
+
+    // ── Compute real English progress from completedLessons metadata ──
+    final rawLessons = meta?['completedLessons'];
+    final int completedCount = rawLessons is List ? rawLessons.length : 0;
+    final double englishProgress = (completedCount / 26).clamp(0.0, 1.0);
+
+    if (meta == null || meta['diagnosticCompleted'] != true) {
+      return List.of(_subjects).map((s) {
+        if (s.name == 'English') return s.copyWith(progress: englishProgress);
+        return s;
+      }).toList();
+    }
+
+    int priority(String level) {
+      switch (level) {
+        case 'learn':  return 0;
+        case 'almost': return 1;
+        case 'star':   return 2;
+        default:       return 1; // fallback to middle
+      }
+    }
+
+    String metaKey(String subjectName) {
+      // "Maths" → "math", others lowercase as-is
+      final lower = subjectName.toLowerCase();
+      final base = lower.endsWith('s') ? lower.substring(0, lower.length - 1) : lower;
+      return '${base}Level';
+    }
+
+    final sorted = List.of(_subjects).map((s) {
+      if (s.name == 'English') return s.copyWith(progress: englishProgress);
+      return s;
+    }).toList();
+    sorted.sort((a, b) {
+      final pa = priority((meta[metaKey(a.name)] as String?) ?? 'almost');
+      final pb = priority((meta[metaKey(b.name)] as String?) ?? 'almost');
+      return pa.compareTo(pb);
+    });
+    return sorted;
+  }
+
   SliverGrid _buildGrid() {
+    final subjects = _sortedSubjects();
     return SliverGrid(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
-          final subject = _subjects[index];
+          final subject = subjects[index];
           final delay = index * 0.15;
           final end   = (delay + 0.5).clamp(0.0, 1.0);
           final curved = CurvedAnimation(
@@ -332,7 +388,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen>
             ),
           );
         },
-        childCount: _subjects.length,
+        childCount: subjects.length,
       ),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -389,6 +445,21 @@ class _SubjectCardState extends State<_SubjectCard>
   Widget build(BuildContext context) {
     final s = widget.subject;
 
+    // ── Determine diagnostic level for shadow emphasis ──
+    final meta = Supabase.instance.client.auth.currentUser?.userMetadata;
+    final level = (meta?['${widget.subject.name.toLowerCase()}Level'] as String?) ?? 'star';
+
+    // "learn" → +40% blur, slight elevation boost; "almost" → +15% blur
+    final double blurMul = switch (level) {
+      'learn'  => 1.40,
+      'almost' => 1.15,
+      _        => 1.0,
+    };
+    final double elevMul = switch (level) {
+      'learn'  => 1.20,
+      _        => 1.0,
+    };
+
     return AnimatedBuilder(
       animation: _press,
       builder: (_, child) => Transform.scale(
@@ -409,14 +480,14 @@ class _SubjectCardState extends State<_SubjectCard>
                 BoxShadow(
                   color: s.accent.withValues(
                       alpha: 0.35 * _pressElevation.value),
-                  blurRadius: 20 * _pressElevation.value,
-                  offset: Offset(0, 8 * _pressElevation.value),
+                  blurRadius: 20 * blurMul * _pressElevation.value,
+                  offset: Offset(0, 8 * elevMul * _pressElevation.value),
                 ),
                 BoxShadow(
                   color: s.accent.withValues(
                       alpha: 0.15 * _pressElevation.value),
-                  blurRadius: 8 * _pressElevation.value,
-                  offset: Offset(0, 2 * _pressElevation.value),
+                  blurRadius: 8 * blurMul * _pressElevation.value,
+                  offset: Offset(0, 2 * elevMul * _pressElevation.value),
                 ),
               ],
             ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/router/app_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ─────────────────────────────────────────────
 //  BRAND TOKENS
@@ -221,19 +222,37 @@ Future<void> _onStart() async {
     return;
   }
 
-  // Build metadata map from diagnostic results
-
   final metadata = <String, dynamic>{
     'diagnosticCompleted': true,
   };
 
+  // Use your existing scoring logic
+  final state = GoRouterState.of(context);
+  final answers = (state.extra as Map<int, int>?) ?? {};
+  final results = _computeResults(answers);
+
   for (final result in results) {
 
-    final level = switch (result.tier) {
-      _Tier.star => 'star',
-      _Tier.almost => 'almost',
-      _Tier.learn => 'learn',
-    };
+    String level;
+
+    switch (result.tier) {
+
+      case _Tier.star:
+        level = 'star';
+        break;
+
+      case _Tier.almost:
+        level = 'almost';
+        break;
+
+      case _Tier.learn:
+        level = 'learn';
+        break;
+
+      default:
+        level = 'learn';
+
+    }
 
     metadata['${result.name.toLowerCase()}Level'] = level;
 
@@ -249,11 +268,7 @@ Future<void> _onStart() async {
 
     );
 
-  } catch (_) {
-
-    // Safe fallback: continue navigation even if metadata write fails
-
-  }
+  } catch (_) {}
 
   if (!mounted) return;
 
