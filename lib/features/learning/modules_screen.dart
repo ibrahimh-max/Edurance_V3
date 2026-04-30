@@ -44,6 +44,17 @@ class _Subject {
     required this.gradient,
   });
 
+  String get displayName {
+    switch (name.toLowerCase()) {
+      case 'english': return 'Alphabets';
+      case 'maths': return 'Numbers';
+      case 'science': return 'Colors';
+      case 'evs': return 'Shapes';
+      case 'hindi': return 'Rhymes';
+      default: return name;
+    }
+  }
+
   _Subject copyWith({double? progress}) => _Subject(
     name: name,
     emoji: emoji,
@@ -605,7 +616,7 @@ class _SubjectCardState extends State<_SubjectCard>
                         ),
                         const Spacer(),
                         Text(
-                          s.name,
+                          s.displayName,
                           style: GoogleFonts.nunito(
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
