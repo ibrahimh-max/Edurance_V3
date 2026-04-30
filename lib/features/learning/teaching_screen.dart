@@ -66,53 +66,84 @@ class _TeachingScreenState extends State<TeachingScreen>
 
   Object _avatarKey = Object();
 
-  late final AnimationController _bounceCtrl;
-  late final Animation<double>   _bounceY;
+late final AnimationController _bounceCtrl;
+late final Animation<double> _bounceY;
 
-  @override
-  void initState() {
-    super.initState();
+@override
+void initState() {
+  super.initState();
 
-    _bounceCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1100),
-    )..repeat(reverse: true);
-    _bounceY = Tween<double>(begin: 0, end: -8).animate(
-      CurvedAnimation(parent: _bounceCtrl, curve: Curves.easeInOut),
-    );
+  // ── Bounce animation initialization (fixes LateInitializationError)
+  _bounceCtrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
 
-    // Set up TTS engine and restore the correct lesson index,
-    // then speak intro ONLY after both are done.
-    _resumeAndStartAudio();
+  _bounceY = Tween<double>(
+    begin: 0,
+    end: -10,
+  ).animate(
+    CurvedAnimation(
+      parent: _bounceCtrl,
+      curve: Curves.easeInOut,
+    ),
+  );
+
+  _bounceCtrl.repeat(reverse: true);
+
+  // Resume correct lesson BEFORE audio starts
+  _resumeAndStartAudio();
+}
+
+/// Restores the next incomplete alphabet lesson index from Supabase metadata
+/// then starts lesson audio for that correct letter.
+Future<void> _resumeAndStartAudio() async {
+  final user =
+      await Supabase.instance.client.auth.getUser();
+
+  if (!mounted) return;
+
+  final metadata =
+      user.user?.userMetadata ?? {};
+
+  final completed =
+      metadata["completedLessons"];
+
+  if (completed == null) {
+    // first-time learner → start from A
+    await _startLessonAudio();
+    return;
   }
+
+  final completedLessons =
+      List<String>.from(completed);
+
+  final nextIndex = kLetterLessons.indexWhere(
+    (lesson) =>
+        !completedLessons.contains(lesson.letter),
+  );
+
+  if (!mounted) return;
+
+  if (nextIndex == -1) {
+    // All letters completed
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _showCompletionDialog(),
+    );
+    return;
+  }
+
+  if (nextIndex != _letterIndex) {
+    setState(() => _letterIndex = nextIndex);
+  }
+
+  await _startLessonAudio();
+}
+
+
 
   /// Fetches the fresh resume index from Supabase, sets up TTS,
   /// then speaks the intro for the correct letter — in that order.
-  Future<void> _resumeAndStartAudio() async {
-    // 1) Run resume fetch and TTS setup concurrently.
-    final results = await Future.wait([
-      _fetchResumeIndex(),
-      _setupTts(),
-    ]);
-
-    if (!mounted) return;
-
-    // 2) Apply the resolved index (null means start from 0).
-    final resumeIndex = results[0] as int?;
-    if (resumeIndex == null) {
-      // All letters done — show completion dialog instead of speaking.
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _showCompletionDialog(),
-      );
-      return;
-    }
-    if (resumeIndex != _letterIndex) {
-      setState(() => _letterIndex = resumeIndex);
-    }
-
-    // 3) Speak intro for the now-correct letter.
-    await _startLessonAudio();
-  }
 
   /// Returns the next incomplete letter index, or null if all are done.
   /// Returns 0 if no completedLessons metadata exists yet.
