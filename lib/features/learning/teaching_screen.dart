@@ -1,9 +1,8 @@
+import '../../services/google_tts_service.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import '../../core/router/app_router.dart';
 import '../../services/ai/openai_service.dart';
 import '../../data/lesson_data.dart';
@@ -46,8 +45,8 @@ class _TeachingScreenState extends State<TeachingScreen>
   int?   _selectedOption;
 
 // ── TTS
-  final FlutterTts _tts = FlutterTts();
-  bool _ttsReady = false;
+  final GoogleTtsService _tts = GoogleTtsService();
+
 
   // ── AI explanation state
   String? _aiExplanation;
@@ -201,16 +200,7 @@ Future<void> _resumeAndStartAudio() async {
     return nextIndex == -1 ? null : nextIndex; // null = all done
   }
 
-  /// Configures the TTS engine (no speech).
-  Future<void> _setupTts() async {
-    await _tts.setLanguage('en-IN');
-    await _tts.setVoice({"name": "en-in-x-ene-local", "locale": "en-IN"});
-    await _tts.setSpeechRate(0.38);
-    await _tts.setVolume(1.0);
-    await _tts.setPitch(1.35);
-    await _tts.awaitSpeakCompletion(true);
-    if (mounted) setState(() => _ttsReady = true);
-  }
+
 
   /// Speaks the intro for the current lesson (called after index is set).
   Future<void> _startLessonAudio() async {
@@ -266,13 +256,9 @@ Future<void> _resumeAndStartAudio() async {
 
 
 
-  Future<void> _speak(String text) async {
-    if (!_ttsReady) {
-      await _setupTts();
-    }
-    await _tts.awaitSpeakCompletion(true);
-    await _tts.speak(text);
-  }
+Future<void> _speak(String text) async {
+  await _tts.speak(text);
+}
 
   Future<void> _speakIntro() async {
     final l = _lesson;
@@ -317,12 +303,11 @@ Future<void> _resumeAndStartAudio() async {
     }
   }
 
-  @override
-  void dispose() {
-    _tts.stop();
-    _bounceCtrl.dispose();
-    super.dispose();
-  }
+@override
+void dispose() {
+  _bounceCtrl.dispose();
+  super.dispose();
+}
 
   // ── Phase transitions
   void _goToMcq() {
