@@ -48,4 +48,7 @@ class EduranceApp extends ConsumerWidget {
       ),
     );
   }
-}
+}
+
+
+//edurance is psuedo agentic platfrom solving the problem of studnents not getting personalized 1:1 attetnion in a class where only 1 teacher is present //
