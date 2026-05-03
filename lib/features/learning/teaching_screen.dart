@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/router/app_router.dart';
-import '../../services/elevenlabs_tts_service.dart';
 import '../../services/ai/openai_service.dart';
 import '../../data/lesson_data.dart';
 import '../../models/lesson.dart';
@@ -44,9 +43,8 @@ class _TeachingScreenState extends State<TeachingScreen>
   _Phase _phase          = _Phase.intro;
   int?   _selectedOption;
 
-// ── TTS
-final ElevenLabsTtsService _tts =
-    ElevenLabsTtsService();
+
+
 
 
   // ── AI explanation state
@@ -258,9 +256,12 @@ Future<void> _resumeAndStartAudio() async {
 
 
 Future<void> _speak(String text) async {
-Future.delayed(const Duration(milliseconds: 300), () {
-  _tts.speak(text);
-});
+  await Future.delayed(
+    const Duration(milliseconds: 300),
+  );
+
+  await OpenAIService
+      .speakWithOpenAI(text);
 }
 
   Future<void> _speakIntro() async {

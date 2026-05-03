@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:http/http.dart' as http;
+import 'package:just_audio/just_audio.dart';
 
 class OpenAIService {
 
@@ -9,15 +12,23 @@ class OpenAIService {
         defaultValue: '',
       );
 
-  static const String _baseUrl =
+  static const String _chatBaseUrl =
       'https://api.openai.com/v1/chat/completions';
+
+  static const String _ttsBaseUrl =
+      'https://api.openai.com/v1/audio/speech';
 
 
   static bool get isConfigured =>
       _apiKey.isNotEmpty;
 
 
-  /// Send single message to OpenAI
+  /// Shared audio player instance
+  static final AudioPlayer _audioPlayer =
+      AudioPlayer();
+
+
+  /// Send single message to OpenAI (existing feature — unchanged)
   static Future<String> sendMessage(
     String message,
   ) async {
@@ -28,7 +39,7 @@ class OpenAIService {
 
     final response = await http.post(
 
-      Uri.parse(_baseUrl),
+      Uri.parse(_chatBaseUrl),
 
       headers: {
 
@@ -77,7 +88,7 @@ class OpenAIService {
   }
 
 
-  /// Explain wrong MCQ answer for kids
+  /// Explain wrong MCQ answer for kids (existing feature — unchanged)
   static Future<String>
       getWrongAnswerExplanation({
 
@@ -100,6 +111,96 @@ class OpenAIService {
         "and why '$correctAnswer' is correct.";
 
     return await sendMessage(prompt);
+
+  }
+
+
+  /// NEW: Speak text using OpenAI TTS (nova voice)
+  static Future<void> speakWithOpenAI(
+    String text,
+  ) async {
+
+    if (!isConfigured) return;
+
+    try {
+
+      final response = await http.post(
+
+        Uri.parse(_ttsBaseUrl),
+
+        headers: {
+
+          'Content-Type':
+              'application/json',
+
+          'Authorization':
+              'Bearer $_apiKey',
+
+        },
+
+        body: jsonEncode({
+
+          "model": "tts-1",
+          "voice": "nova",
+          "input": text,
+          "response_format": "mp3"
+
+        }),
+
+      );
+
+
+      if (response.statusCode == 200) {
+
+        Uint8List audioBytes =
+            response.bodyBytes;
+
+
+        /// Prevent overlapping narration
+        await _audioPlayer.stop();
+
+
+        await _audioPlayer.setAudioSource(
+
+          AudioSource.uri(
+
+            Uri.dataFromBytes(
+
+              audioBytes,
+              mimeType: "audio/mpeg",
+
+            ),
+
+          ),
+
+        );
+
+
+        /// Slightly slower playback for young learners
+        await _audioPlayer.setSpeed(0.85);
+
+
+        await _audioPlayer.play();
+
+      }
+
+      else {
+
+        print(
+          "OpenAI TTS failed: ${response.body}"
+        );
+
+      }
+
+    }
+
+    catch (e) {
+
+      print(
+        "OpenAI TTS error: $e"
+      );
+
+    }
 
   }
 
