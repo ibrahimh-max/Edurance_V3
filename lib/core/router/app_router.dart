@@ -98,6 +98,7 @@ String _getInitialRoute() {
   final session =
       Supabase.instance.client.auth.currentSession;
 
+  // NOT LOGGED IN
   if (session == null) {
     return AppRoutes.signup;
   }
@@ -108,9 +109,11 @@ String _getInitialRoute() {
   final diagnosticCompleted =
       metadata?['diagnosticCompleted'] ?? false;
 
+  // LOGGED IN + DIAGNOSTIC DONE
   if (diagnosticCompleted == true) {
     return AppRoutes.modules;
   }
 
+  // LOGGED IN BUT DIAGNOSTIC NOT DONE
   return AppRoutes.diagnosticTest;
 }

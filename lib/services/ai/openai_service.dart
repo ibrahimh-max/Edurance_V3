@@ -11,6 +11,8 @@ class OpenAIService {
         'OPENAI_API_KEY',
         defaultValue: '',
       );
+  
+  static final Map<String, Uint8List> _audioCache = {};
 
   static const String _chatBaseUrl =
       'https://api.openai.com/v1/chat/completions';
@@ -21,6 +23,8 @@ class OpenAIService {
 
   static bool get isConfigured =>
       _apiKey.isNotEmpty;
+
+  
 
 
   /// Shared audio player instance
@@ -116,13 +120,26 @@ class OpenAIService {
 
 
   /// NEW: Speak text using OpenAI TTS (nova voice)
-  static Future<void> speakWithOpenAI(
-    String text,
-  ) async {
+static Future<void> speakWithOpenAI(
+  String text,
+) async {
 
-    if (!isConfigured) return;
+  if (!isConfigured) return;
 
-    try {
+  try {
+
+    Uint8List audioBytes;
+
+    /// STEP 1: Check cache first
+    if (_audioCache.containsKey(text)) {
+
+      audioBytes = _audioCache[text]!;
+
+    }
+
+    else {
+
+      /// STEP 2: Fetch from OpenAI
 
       final response = await http.post(
 
@@ -150,58 +167,62 @@ class OpenAIService {
       );
 
 
-      if (response.statusCode == 200) {
-
-        Uint8List audioBytes =
-            response.bodyBytes;
-
-
-        /// Prevent overlapping narration
-        await _audioPlayer.stop();
-
-
-        await _audioPlayer.setAudioSource(
-
-          AudioSource.uri(
-
-            Uri.dataFromBytes(
-
-              audioBytes,
-              mimeType: "audio/mpeg",
-
-            ),
-
-          ),
-
-        );
-
-
-        /// Slightly slower playback for young learners
-        await _audioPlayer.setSpeed(0.85);
-
-
-        await _audioPlayer.play();
-
-      }
-
-      else {
+      if (response.statusCode != 200) {
 
         print(
           "OpenAI TTS failed: ${response.body}"
         );
 
+        return;
+
       }
 
+
+      audioBytes = response.bodyBytes;
+
+
+      /// STEP 3: Save to cache
+      _audioCache[text] = audioBytes;
+
     }
 
-    catch (e) {
 
-      print(
-        "OpenAI TTS error: $e"
-      );
+    /// STEP 4: Play audio
 
-    }
+    await _audioPlayer.stop();
+
+
+    await _audioPlayer.setAudioSource(
+
+      AudioSource.uri(
+
+        Uri.dataFromBytes(
+
+          audioBytes,
+          mimeType: "audio/mpeg",
+
+        ),
+
+      ),
+
+    );
+
+
+    await _audioPlayer.setSpeed(0.85);
+
+
+    await _audioPlayer.play();
 
   }
+
+  catch (e) {
+
+    print(
+      "OpenAI TTS error: $e"
+    );
+
+  }
+
+}
 
 }
