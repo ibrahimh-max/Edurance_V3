@@ -43,6 +43,8 @@ class _TeachingScreenState extends State<TeachingScreen>
   _Phase _phase          = _Phase.intro;
   int?   _selectedOption;
 
+  bool _moduleIntroSpoken = false; 
+
 
 
 
@@ -53,22 +55,39 @@ class _TeachingScreenState extends State<TeachingScreen>
 
   late List<Lesson> activeLessons;
   late String moduleType;
+@override
+void didChangeDependencies() {
+  super.didChangeDependencies();
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    moduleType = (GoRouterState.of(context).extra as String?) ?? 'alphabet';
-    switch (moduleType) {
-      case 'numbers': activeLessons = numberLessons; break;
-      case 'colors': activeLessons = colorLessons; break;
-      case 'shapes': activeLessons = shapeLessons; break;
-      case 'rhymes': activeLessons = rhymeLessons; break;
-      case 'alphabet':
-      default:
-        activeLessons = alphabetLessons;
-        break;
-    }
+  moduleType =
+      (GoRouterState.of(context).extra as String?) ?? 'alphabet';
+
+  switch (moduleType) {
+    case 'numbers':
+      activeLessons = numberLessons;
+      break;
+
+    case 'colors':
+      activeLessons = colorLessons;
+      break;
+
+    case 'shapes':
+      activeLessons = shapeLessons;
+      break;
+
+    case 'rhymes':
+      activeLessons = rhymeLessons;
+      break;
+
+    case 'alphabet':
+    default:
+      activeLessons = alphabetLessons;
+      break;
   }
+
+  // ✅ RESET intro speech when module changes
+  _moduleIntroSpoken = false;
+}
 
   Lesson get _lesson => activeLessons[_letterIndex];
 
@@ -264,36 +283,66 @@ Future<void> _speak(String text) async {
       .speakWithOpenAI(text);
 }
 
-  Future<void> _speakIntro() async {
-    final l = _lesson;
-    switch (l.module) {
-      case 'alphabet':
+Future<void> _speakIntro() async {
+  final l = _lesson;
+
+  switch (l.module) {
+    case 'alphabet':
+
+      if (!_moduleIntroSpoken) {
         await _speak('Let’s learn alphabets.');
         await Future.delayed(const Duration(milliseconds: 300));
-        await _speak('This is the letter ${l.title}.');
-        break;
-      case 'numbers':
+        _moduleIntroSpoken = true;
+      }
+
+      await _speak('This is the letter ${l.title}.');
+      break;
+
+    case 'numbers':
+
+      if (!_moduleIntroSpoken) {
         await _speak('Let’s learn numbers.');
         await Future.delayed(const Duration(milliseconds: 300));
-        await _speak('This is number ${l.title}.');
-        break;
-      case 'colors':
+        _moduleIntroSpoken = true;
+      }
+
+      await _speak('This is number ${l.title}.');
+      break;
+
+    case 'colors':
+
+      if (!_moduleIntroSpoken) {
         await _speak('Let’s learn colors.');
         await Future.delayed(const Duration(milliseconds: 300));
-        await _speak('This is ${l.title}.');
-        break;
-      case 'shapes':
+        _moduleIntroSpoken = true;
+      }
+
+      await _speak('This is ${l.title}.');
+      break;
+
+    case 'shapes':
+
+      if (!_moduleIntroSpoken) {
         await _speak('Let’s learn shapes.');
         await Future.delayed(const Duration(milliseconds: 300));
-        await _speak('This is a ${l.title}.');
-        break;
-      case 'rhymes':
+        _moduleIntroSpoken = true;
+      }
+
+      await _speak('This is a ${l.title}.');
+      break;
+
+    case 'rhymes':
+
+      if (!_moduleIntroSpoken) {
         await _speak('Let’s learn a rhyme.');
         await Future.delayed(const Duration(milliseconds: 300));
-        await _speak(l.prompt);
-        break;
-    }
+        _moduleIntroSpoken = true;
+      }
+
+      await _speak(l.prompt);
+      break;
   }
+}
 
   Future<void> _speakMcq() async {
     await _speak(_lesson.prompt);
