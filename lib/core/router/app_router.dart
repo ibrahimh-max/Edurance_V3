@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/auth/signup_screen.dart';
 import '../../features/auth/login_screen.dart';
 
+import '../../screens/splash/splash_screen.dart';
+
 import '../../features/diagnostic/diagnostic_test_screen.dart';
 import '../../features/diagnostic/diagnostic_report_screen.dart';
 
@@ -36,7 +38,7 @@ abstract final class AppRoutes {
 final appRouter = GoRouter(
   debugLogDiagnostics: true,
 
-  initialLocation: _getInitialRoute(),
+  initialLocation: '/',
 
   routes: [
 
@@ -46,6 +48,14 @@ final appRouter = GoRouter(
       name: 'signup',
       builder: (context, state) => const SignupScreen(),
     ),
+
+  GoRoute(
+      path: '/',
+      builder: (context, state) => const SplashScreen(),
+    ),
+
+
+
 
     GoRoute(
       path: AppRoutes.login,
