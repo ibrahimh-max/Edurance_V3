@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AnalyticsService {
@@ -24,7 +25,8 @@ class AnalyticsService {
           .single();
 
       return response['id'] as String?;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Analytics startSession error: $e');
       return null;
     }
   }
@@ -45,33 +47,28 @@ class AnalyticsService {
             'completed_at':       DateTime.now().toIso8601String(),
           })
           .eq('id', sessionId);
-    } catch (_) {
-      // Non-critical — swallow silently
+    } catch (e) {
+      debugPrint('Analytics completeSession error: $e');
     }
   }
 
   /// Increments the replays_used counter for the given session by 1.
   static Future<void> incrementReplayCount(String sessionId) async {
     try {
-      await _db.rpc('increment_replay_count', params: {'session_id': sessionId});
-    } catch (_) {
-      // Fallback: manual read-increment-write if RPC not available
-      try {
-        final row = await _db
-            .from('learning_sessions')
-            .select('replays_used')
-            .eq('id', sessionId)
-            .single();
+      final row = await _db
+          .from('learning_sessions')
+          .select('replays_used')
+          .eq('id', sessionId)
+          .single();
 
-        final current = (row['replays_used'] as num?)?.toInt() ?? 0;
+      final current = (row['replays_used'] as num?)?.toInt() ?? 0;
 
-        await _db
-            .from('learning_sessions')
-            .update({'replays_used': current + 1})
-            .eq('id', sessionId);
-      } catch (_) {
-        // Non-critical — swallow silently
-      }
+      await _db
+          .from('learning_sessions')
+          .update({'replays_used': current + 1})
+          .eq('id', sessionId);
+    } catch (e) {
+      debugPrint('Analytics incrementReplayCount error: $e');
     }
   }
 }
