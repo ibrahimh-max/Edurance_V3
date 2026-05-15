@@ -282,9 +282,7 @@ Future<void> _resumeAndStartAudio() async {
           ),
         ),
         content: Text(
-          _lesson.module == 'rhymes'
-              ? "You finished ${_lesson.title}! ${_lesson.emoji}"
-              : "You've finished all lessons in this module 🎉",
+          "You've finished all lessons in this module 🎉",
           textAlign: TextAlign.center,
           style: GoogleFonts.nunito(
             fontSize: 16,
@@ -385,7 +383,7 @@ Future<void> _speakIntro() async {
     case 'rhymes':
 
       if (!_moduleIntroSpoken) {
-        await _speak("Let's learn ${l.title}!");
+        await _speak('Let’s learn a rhyme.');
         await Future.delayed(const Duration(milliseconds: 300));
         _moduleIntroSpoken = true;
       }
@@ -415,16 +413,6 @@ void dispose() {
 
   // ── Phase transitions
   void _goToMcq() {
-    // Rhymes have no MCQ — advance directly to the next line.
-    if (_lesson.module == 'rhymes') {
-      _saveCompletedLesson(_lesson.id);
-      if (_isLastLetter) {
-        _showCompletionDialog();
-      } else {
-        _goToNextLetter();
-      }
-      return;
-    }
     setState(() {
       _phase     = _Phase.mcq;
       _avatarKey = Object();
@@ -746,7 +734,6 @@ void _selectOption(int index) {
 String _speechBubbleText() {
     switch (_phase) {
       case _Phase.intro:
-        if (_lesson.module == 'rhymes') return _lesson.prompt;
         return _lesson.module == 'alphabet'
             ? 'This is the letter ${_lesson.title}! Say it with me!'
             : 'Let\'s learn ${_lesson.title}!';
@@ -831,9 +818,7 @@ String _speechBubbleText() {
           ),
           const SizedBox(height: 16),
           _GreenButton(
-            label: _lesson.module == 'rhymes'
-                ? (_isLastLetter ? 'Finish rhyme! 🎉' : 'Next line →')
-                : "I got it! Let's answer →",
+            label: "I got it! Let's answer →",
             onTap: _goToMcq,
           ),
           const SizedBox(height: 4),

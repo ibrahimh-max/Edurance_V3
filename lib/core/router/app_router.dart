@@ -11,6 +11,7 @@ import '../../features/diagnostic/diagnostic_report_screen.dart';
 
 import '../../features/learning/modules_screen.dart';
 import '../../features/learning/teaching_screen.dart';
+import '../../features/rhymes/rhyme_selection_screen.dart';
 
 import '../../features/parent/parent_control_screen.dart';
 
@@ -27,6 +28,7 @@ abstract final class AppRoutes {
 
   static const modules = '/modules';
   static const teaching = '/teaching';
+  static const rhymeSelect = '/rhyme-select';
 
   static const parentControl = '/parent-control';
 }
@@ -87,6 +89,12 @@ final appRouter = GoRouter(
       path: AppRoutes.teaching,
       name: 'teaching',
       builder: (context, state) => const TeachingScreen(),
+    ),
+
+    GoRoute(
+      path: AppRoutes.rhymeSelect,
+      name: 'rhyme-select',
+      builder: (context, state) => const RhymeSelectionScreen(),
     ),
 
     // PARENT CONTROL

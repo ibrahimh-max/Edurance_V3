@@ -180,13 +180,18 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen>
   }
 
   void _onSubjectTap(_Subject subject) {
+    // Rhymes go to the selection screen first.
+    if (subject.name.toLowerCase() == 'hindi') {
+      context.go(AppRoutes.rhymeSelect);
+      return;
+    }
+
     String moduleType = 'alphabet';
     switch (subject.name.toLowerCase()) {
       case 'english': moduleType = 'alphabet'; break;
-      case 'maths': moduleType = 'numbers'; break;
-      case 'science': moduleType = 'colors'; break;
-      case 'hindi': moduleType = 'rhymes'; break;
-      case 'evs': moduleType = 'shapes'; break;
+      case 'maths':   moduleType = 'numbers';  break;
+      case 'science': moduleType = 'colors';   break;
+      case 'evs':     moduleType = 'shapes';   break;
     }
     context.go(AppRoutes.teaching, extra: moduleType);
   }
