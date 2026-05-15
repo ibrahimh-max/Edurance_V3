@@ -10,6 +10,7 @@ import '../../core/router/app_router.dart';
 import '../../providers/signup_notifier.dart';
 import '../../data/lesson_data.dart';
 import '../../models/lesson.dart';
+import '../../services/learning/lesson_schedule_service.dart';
 
 
 class _C {
@@ -139,6 +140,8 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen>
   late final AnimationController _mascotBounce;
   late final Animation<double> _mascotY;
 
+  late Future<Map<String, bool>> _availabilityFuture;
+
   @override
   void initState() {
     super.initState();
@@ -169,6 +172,8 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen>
     _mascotY = Tween<double>(begin: 0, end: -7).animate(
       CurvedAnimation(parent: _mascotBounce, curve: Curves.easeInOut),
     );
+
+    _availabilityFuture = LessonScheduleService.getWeeklyModuleAvailability();
   }
 
   @override
@@ -228,7 +233,13 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen>
               ),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
-                sliver: _buildGrid(),
+                sliver: FutureBuilder<Map<String, bool>>(
+                  future: _availabilityFuture,
+                  builder: (context, snap) {
+                    final availability = snap.data ?? {};
+                    return _buildGrid(availability);
+                  },
+                ),
               ),
             ],
           ),
@@ -403,12 +414,28 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen>
     return sorted;
   }
 
-  SliverGrid _buildGrid() {
+  SliverGrid _buildGrid(Map<String, bool> availability) {
     final subjects = _sortedSubjects();
+
+    // Map subject name → module key
+    String moduleKey(String name) {
+      switch (name.toLowerCase()) {
+        case 'english': return 'alphabet';
+        case 'maths':   return 'numbers';
+        case 'science': return 'colors';
+        case 'evs':     return 'shapes';
+        case 'hindi':   return 'rhymes';
+        default:        return name.toLowerCase();
+      }
+    }
+
     return SliverGrid(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
-          final subject = subjects[index];
+          final subject     = subjects[index];
+          final isAvailable = availability.isEmpty
+              ? true // still loading → allow tap
+              : (availability[moduleKey(subject.name)] ?? true);
           final delay = index * 0.15;
           final end   = (delay + 0.5).clamp(0.0, 1.0);
           final curved = CurvedAnimation(
@@ -425,8 +452,9 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen>
               ),
             ),
             child: _SubjectCard(
-              subject: subject,
-              onTap: () => _onSubjectTap(subject),
+              subject:     subject,
+              isAvailable: isAvailable,
+              onTap:       isAvailable ? () => _onSubjectTap(subject) : null,
             ),
           );
         },
@@ -443,10 +471,15 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen>
 }
 
 class _SubjectCard extends StatefulWidget {
-  final _Subject subject;
-  final VoidCallback onTap;
+  final _Subject      subject;
+  final VoidCallback? onTap;
+  final bool          isAvailable;
 
-  const _SubjectCard({required this.subject, required this.onTap});
+  const _SubjectCard({
+    required this.subject,
+    required this.isAvailable,
+    required this.onTap,
+  });
 
   @override
   State<_SubjectCard> createState() => _SubjectCardState();
@@ -509,11 +542,13 @@ class _SubjectCardState extends State<_SubjectCard>
         child: child,
       ),
       child: GestureDetector(
-        onTap: widget.onTap,
-        onTapDown: _onTapDown,
-        onTapUp: _onTapUp,
-        onTapCancel: _onTapCancel,
-        child: AnimatedBuilder(
+        onTap: widget.onTap, // null when unavailable — disables tap
+        onTapDown: widget.isAvailable ? _onTapDown : null,
+        onTapUp:   widget.isAvailable ? _onTapUp   : null,
+        onTapCancel: widget.isAvailable ? _onTapCancel : null,
+        child: Opacity(
+          opacity: widget.isAvailable ? 1.0 : 0.45,
+          child: AnimatedBuilder(
           animation: _pressElevation,
           builder: (_, child) => Container(
             decoration: BoxDecoration(
@@ -637,16 +672,18 @@ class _SubjectCardState extends State<_SubjectCard>
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            s.currentTopic,
-                            style: GoogleFonts.nunito(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              height: 1.2,
+                              widget.isAvailable
+                                  ? s.currentTopic
+                                  : 'Weekly Goal Completed 🎉',
+                              style: GoogleFonts.nunito(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                height: 1.2,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
                         ),
                         const SizedBox(height: 10),
                         ClipRRect(
@@ -680,6 +717,7 @@ class _SubjectCardState extends State<_SubjectCard>
                 ],
               ),
             ),
+          ),
           ),
         ),
       ),
