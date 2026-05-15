@@ -1,4 +1,6 @@
 import '../models/lesson.dart';
+import '../models/rhyme.dart';
+import 'rhyme_data.dart';
 
 // ── ALPHABET ──
 const List<Lesson> alphabetLessons = [
@@ -79,9 +81,17 @@ const List<Lesson> shapeLessons = [
 ];
 
 // ── RHYMES ──
-const List<Lesson> rhymeLessons = [
-  Lesson(id: "twinkle_line_1", module: "rhymes", title: "Twinkle Twinkle", emoji: "⭐", prompt: "Twinkle, twinkle, little star", options: []),
-  Lesson(id: "twinkle_line_2", module: "rhymes", title: "Twinkle Twinkle", emoji: "⭐", prompt: "How I wonder what you are", options: []),
-  Lesson(id: "twinkle_line_3", module: "rhymes", title: "Twinkle Twinkle", emoji: "⭐", prompt: "Up above the world so high", options: []),
-  Lesson(id: "twinkle_line_4", module: "rhymes", title: "Twinkle Twinkle", emoji: "⭐", prompt: "Like a diamond in the sky", options: []),
+// Generated from allRhymes in rhyme_data.dart.
+// To add a new rhyme, add a Rhyme entry there — no changes needed here.
+List<Lesson> rhymeLessons = [
+  for (final Rhyme rhyme in allRhymes)
+    for (int i = 0; i < rhyme.lines.length; i++)
+      Lesson(
+        id: '${rhyme.id}_line_${i + 1}',
+        module: 'rhymes',
+        title: rhyme.title,
+        emoji: rhyme.emoji,
+        prompt: rhyme.lines[i],
+        options: [],
+      ),
 ];
