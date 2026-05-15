@@ -6,6 +6,7 @@ import '../../core/router/app_router.dart';
 import '../../services/ai/openai_service.dart';
 import '../../data/lesson_data.dart';
 import '../../models/lesson.dart';
+import '../../services/analytics/analytics_service.dart';
 
 // ─────────────────────────────────────────────
 //  BRAND TOKENS
@@ -43,7 +44,11 @@ class _TeachingScreenState extends State<TeachingScreen>
   _Phase _phase          = _Phase.intro;
   int?   _selectedOption;
 
-  bool _moduleIntroSpoken = false; 
+  bool _moduleIntroSpoken = false;
+
+  // ── Analytics
+  String? _sessionId;
+  late DateTime _sessionStartedAt;
 
 
 
@@ -193,6 +198,13 @@ Future<void> _resumeAndStartAudio() async {
   }
 
   await _startLessonAudio();
+
+  // ── Start analytics session after lesson index is resolved
+  _sessionStartedAt = DateTime.now();
+  _sessionId = await AnalyticsService.startSession(
+    lessonId: activeLessons[_letterIndex].id,
+    subject:  moduleType,
+  );
 }
 
 
@@ -255,6 +267,16 @@ Future<void> _resumeAndStartAudio() async {
         actions: [
           TextButton(
             onPressed: () {
+              // ── Analytics: complete session on module completion
+              if (_sessionId != null) {
+                AnalyticsService.completeSession(
+                  sessionId:        _sessionId!,
+                  score:            _isCorrect ? 1 : 0,
+                  timeSpentSeconds: DateTime.now()
+                      .difference(_sessionStartedAt)
+                      .inSeconds,
+                );
+              }
               Navigator.of(context).pop();
               context.go(AppRoutes.modules);
             },
@@ -521,6 +543,10 @@ void _selectOption(int index) {
                     // Tap to replay speech
                     GestureDetector(
                       onTap: () {
+                        // ── Analytics: count replay
+                        if (_sessionId != null) {
+                          AnalyticsService.incrementReplayCount(_sessionId!);
+                        }
                         switch (_phase) {
                           case _Phase.intro:     _speakIntro();    break;
                           case _Phase.mcq:       _speakMcq();      break;
@@ -853,7 +879,16 @@ String _speechBubbleText() {
               ? _GreenButton(
                   label: "I'm done! 🎉",
                   onTap: () {
-                   
+                    // ── Analytics: complete session
+                    if (_sessionId != null) {
+                      AnalyticsService.completeSession(
+                        sessionId:        _sessionId!,
+                        score:            _isCorrect ? 1 : 0,
+                        timeSpentSeconds: DateTime.now()
+                            .difference(_sessionStartedAt)
+                            .inSeconds,
+                      );
+                    }
                     context.go(AppRoutes.modules);
                   },
                 )
