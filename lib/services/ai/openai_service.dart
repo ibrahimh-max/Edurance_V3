@@ -118,6 +118,20 @@ class OpenAIService {
 
   }
 
+  /// NEW: Generate a much simpler explanation for a confused child
+  static Future<String> getSimplerExplanation({
+    required String previousExplanation,
+  }) async {
+    final prompt = 
+        "The following is an explanation given to a child who got a question wrong:\n"
+        "\"$previousExplanation\"\n"
+        "The child is still confused. Please rewrite this explanation so it's even simpler. "
+        "Imagine you are explaining it to a 5-year-old. Use very short sentences, a friendly encouraging tone, "
+        "and a simple real-world example if possible. Avoid any complex jargon.";
+
+    return await sendMessage(prompt);
+  }
+
 
   /// NEW: Speak text using OpenAI TTS (nova voice)
 static Future<void> speakWithOpenAI(

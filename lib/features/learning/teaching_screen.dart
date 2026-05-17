@@ -68,6 +68,7 @@ class _TeachingScreenState extends State<TeachingScreen>
   // ── AI explanation state
   String? _aiExplanation;
   bool _loadingExplanation = false;
+  bool _isClarifying = false;
 
   late List<Lesson> activeLessons;
   late String moduleType;
@@ -287,6 +288,34 @@ Future<void> _resumeAndStartAudio() async {
       await _speakIntroAndAutoAdvance();
     } else {
       await _speakIntro();
+    }
+  }
+
+  Future<void> _getSimplerExplanation() async {
+    if (_aiExplanation == null) return;
+    
+    setState(() {
+      _isClarifying = true;
+    });
+
+    try {
+      final simplerExpl = await OpenAIService.getSimplerExplanation(
+        previousExplanation: _aiExplanation!,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _aiExplanation = simplerExpl;
+        _isClarifying = false;
+      });
+
+      await _speak(simplerExpl);
+    } catch (e) {
+      debugPrint("OpenAI error: $e");
+      if (mounted) {
+        setState(() => _isClarifying = false);
+      }
     }
   }
 
@@ -577,6 +606,7 @@ void _selectOption(int index) {
       _phase          = _Phase.feedback;
       _avatarKey      = Object();
       _aiExplanation  = null;
+      _isClarifying   = false;
     });
 
     final isCorrect = _isOptionCorrect(index);
@@ -992,6 +1022,7 @@ void _selectOption(int index) {
       case _Phase.feedback:
         if (_isCorrect) return 'Amazing! 🌟 You got it right!';
         if (_loadingExplanation) return 'Hmm, let me explain... 🤔';
+        if (_isClarifying) return 'Thinking of a simpler way to explain... 🤔';
         return _aiExplanation ?? 'Let\'s try again!';
     }
   }
@@ -1232,6 +1263,13 @@ void _selectOption(int index) {
             ),
           ),
           const SizedBox(height: 12),
+          if (!_isCorrect && _aiExplanation != null && moduleType != 'rhymes' && !_isClarifying) ...[
+            _SecondaryButton(
+              label: "I'm confused 😕",
+              onTap: _getSimplerExplanation,
+            ),
+            const SizedBox(height: 12),
+          ],
           _isLastLetter
               ? _GreenButton(
                   label: "I'm done! 🎉",
@@ -1476,6 +1514,42 @@ class _GreenButton extends StatelessWidget {
               fontWeight: FontWeight.w900,
               color: _C.white,
               letterSpacing: 0.3,
+            ),
+          ),
+        ),
+        ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+//  SECONDARY BUTTON (LIGHT BLUE)
+// ─────────────────────────────────────────────
+class _SecondaryButton extends StatelessWidget {
+  final String       label;
+  final VoidCallback onTap;
+
+  const _SecondaryButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        height: 50,
+        decoration: BoxDecoration(
+          color: _C.blue.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _C.blue.withValues(alpha: 0.2)),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: GoogleFonts.nunito(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: _C.blue,
             ),
           ),
         ),
