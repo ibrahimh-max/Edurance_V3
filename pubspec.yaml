@@ -37,3 +37,17 @@ flutter:
     - assets/images/
     - assets/animations/
     - assets/fonts/
+
+flutter:
+
+  assets:
+    - assets/
+
+  fonts:
+    - family: Nunito
+      fonts:
+        - asset: assets/fonts/Nunito-Regular.ttf
+        - asset: assets/fonts/Nunito-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Nunito-ExtraBold.ttf
+          weight: 800

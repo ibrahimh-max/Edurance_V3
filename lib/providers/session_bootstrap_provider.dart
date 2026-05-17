@@ -1,14 +1,23 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'signup_notifier.dart';
 
-/// Reads Supabase user metadata on startup and hydrates [signupProvider]
-/// so the child name (and other profile fields) survive a browser refresh.
-final sessionBootstrapProvider = FutureProvider<void>((ref) async {
+/// Hydrates [signupProvider] from Supabase user metadata.
+///
+/// Call this once from [SplashScreen] after confirming the user is
+/// authenticated. Using a plain async function instead of [FutureProvider]
+/// prevents the hydration from running during every [MaterialApp] rebuild.
+Future<void> bootstrapSession(WidgetRef ref) async {
+  debugPrint('Startup: bootstrapSession — begin');
+
   final user = Supabase.instance.client.auth.currentUser;
 
-  if (user == null) return;
+  if (user == null) {
+    debugPrint('Startup: bootstrapSession — no authenticated user, skipping');
+    return;
+  }
 
   final metadata = user.userMetadata ?? {};
 
@@ -31,4 +40,6 @@ final sessionBootstrapProvider = FutureProvider<void>((ref) async {
   ref
       .read(signupProvider.notifier)
       .updateParentMobile((metadata['parentMobile'] as String?) ?? '');
-});
+
+  debugPrint('Startup: Session hydrated — childName=${metadata['childName']}');
+}
