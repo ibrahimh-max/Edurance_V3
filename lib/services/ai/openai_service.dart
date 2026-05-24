@@ -21,8 +21,11 @@ class OpenAIService {
       'https://api.openai.com/v1/audio/speech';
 
 
-  static bool get isConfigured =>
-      _apiKey.isNotEmpty;
+static bool get isConfigured {
+  final configured = _apiKey.isNotEmpty;
+  print('OpenAI configured: $configured');
+  return configured;
+}
 
   
 
