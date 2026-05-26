@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 
@@ -22,11 +22,11 @@ class OpenAIService {
 
 
 static bool get isConfigured {
-  final configured = _apiKey.isNotEmpty;
-  print('OpenAI configured: $configured');
-  return configured;
+  debugPrint(
+    'OPENAI CONFIG CHECK → key length: ${_apiKey.length}',
+  );
+  return _apiKey.isNotEmpty;
 }
-
   
 
 

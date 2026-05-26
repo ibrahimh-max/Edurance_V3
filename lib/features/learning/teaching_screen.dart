@@ -9,20 +9,24 @@ import '../../services/ai/openai_service.dart';
 import '../../data/lesson_data.dart';
 import '../../models/lesson.dart';
 import '../../services/analytics/analytics_service.dart';
+// EduranceColors palette values are mirrored in _C below (see comments)
 
 // ─────────────────────────────────────────────
 //  BRAND TOKENS
 // ─────────────────────────────────────────────
 class _C {
-  static const purple = Color(0xFF9B6BFF);
-  static const yellow = Color(0xFFFFD94A);
-  static const blue   = Color(0xFF4AC8FF);
-  static const coral  = Color(0xFFFF6B6B);
-  static const green  = Color(0xFF56CF7E);
-  static const bg     = Color(0xFFFFF9F0);
-  static const dark   = Color(0xFF2D2D3A);
-  static const muted  = Color(0xFF9E9EA8);
-  static const white  = Colors.white;
+  static const purple    = Color(0xFF9B6BFF);
+  static const yellow    = Color(0xFFFFD94A);
+  static const blue      = Color(0xFF4AC8FF);
+  static const coral     = Color(0xFFFF6B6B);    // = EduranceColors.error
+  static const green     = Color(0xFF59D98E);    // = EduranceColors.success
+  static const teal      = Color(0xFF26CCC2);    // = EduranceColors.primary
+  static const bg        = Color(0xFFFFFDF7);    // = EduranceColors.background
+  static const dark      = Color(0xFF22324A);    // = EduranceColors.textPrimary
+  static const muted     = Color(0xFF7A869A);    // = EduranceColors.textMuted
+  static const white     = Colors.white;
+  static const cream     = Color(0xFFFFF8F3);    // warm classroom cream
+  static const warmBorder = Color(0xFFFFE4C4);  // warm peach border
 }
 
 // ─────────────────────────────────────────────
@@ -594,29 +598,49 @@ void _selectOption(int index) {
     }
   }
 
-  Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
-    setState(() => _loadingExplanation = true);
+Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
+  setState(() {
+    _loadingExplanation = true;
+    _aiExplanation = null;
+  });
 
-    final explanation = await OpenAIService.getWrongAnswerExplanation(
+  try {
+    final explanation =
+        await OpenAIService.getWrongAnswerExplanation(
       lessonTitle: _lesson.title,
       module: _lesson.module,
       correctAnswer: _lesson.options.firstWhere(
-        (opt) => _isOptionCorrect(_lesson.options.indexOf(opt)),
+        (opt) => _isOptionCorrect(
+          _lesson.options.indexOf(opt),
+        ),
       ),
       wrongAnswer: _lesson.options[wrongIndex],
       question: _lesson.prompt,
     );
 
     if (!mounted) return;
+
     setState(() {
-      _aiExplanation     = explanation;
+      _aiExplanation = explanation;
       _loadingExplanation = false;
-      _avatarKey          = Object(); // refresh speech bubble
+      _avatarKey = Object();
     });
 
-    // Speak the AI-generated explanation
     await _speak(explanation);
+  } catch (e) {
+    debugPrint('AI explanation failed: $e');
+
+    if (!mounted) return;
+
+    setState(() {
+      _loadingExplanation = false;
+      _aiExplanation =
+          "That's okay! Let's learn together and try again.";
+    });
+
+    await _speak(_aiExplanation!);
   }
+}
 
   Future<void> _saveCompletedLesson(String letter) async {
     final user = Supabase.instance.client.auth.currentUser;
@@ -654,10 +678,11 @@ void _selectOption(int index) {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: moduleType == 'rhymes' ? Colors.transparent : _C.bg,
+      backgroundColor: moduleType == 'rhymes' ? Colors.transparent : const Color(0xFFFFF0E5),
       body: Stack(
         children: [
           if (moduleType == 'rhymes') _buildRhymeBackground(),
+          if (moduleType != 'rhymes') _buildClassroomBackground(),
           SafeArea(
             child: Column(
               children: [
@@ -665,10 +690,8 @@ void _selectOption(int index) {
                 Expanded(
                   child: Column(
                     children: [
-                      _buildAvatarSection(),
-                      Expanded(child: _buildPhaseContent()),
-                      _buildProgressDots(),
-                      const SizedBox(height: 12),
+                      _buildTutorCorner(),
+                      Expanded(child: _buildLearningStage()),
                     ],
                   ),
                 ),
@@ -773,12 +796,133 @@ void _selectOption(int index) {
     );
   }
 
+  // ─────── CLASSROOM ATMOSPHERE ────────
+  Widget _buildClassroomBackground() {
+    return Stack(
+      children: [
+        // Base warm gradient to make it immersive
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFFFF0E5), // Distinct warm cream top
+                Color(0xFFFDF4ED), // Gently lighter bottom
+              ],
+            ),
+          ),
+        ),
+        // Soft clouds/blobs
+        Positioned(
+          top: -60,
+          left: -80,
+          child: Container(
+            width: 300,
+            height: 300,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _C.purple.withValues(alpha: 0.06),
+              boxShadow: [
+                BoxShadow(
+                  color: _C.purple.withValues(alpha: 0.04),
+                  blurRadius: 60,
+                  spreadRadius: 20,
+                )
+              ]
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: -100,
+          right: -100,
+          child: Container(
+            width: 400,
+            height: 400,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _C.teal.withValues(alpha: 0.06),
+              boxShadow: [
+                BoxShadow(
+                  color: _C.teal.withValues(alpha: 0.04),
+                  blurRadius: 80,
+                  spreadRadius: 40,
+                )
+              ]
+            ),
+          ),
+        ),
+        Positioned(
+          top: 250,
+          right: -60,
+          child: Container(
+            width: 250,
+            height: 250,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _C.yellow.withValues(alpha: 0.05),
+              boxShadow: [
+                BoxShadow(
+                  color: _C.yellow.withValues(alpha: 0.03),
+                  blurRadius: 60,
+                  spreadRadius: 20,
+                )
+              ]
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─────── LEARNING STAGE ────────
+  Widget _buildLearningStage() {
+    if (moduleType == 'rhymes') {
+      return Column(
+        children: [
+          Expanded(child: _buildPhaseContent()),
+          _buildProgressDots(),
+          const SizedBox(height: 12),
+        ],
+      );
+    }
+    
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      decoration: BoxDecoration(
+        color: _C.bg, // Edurance Background (FFFDF7) acts as the Canvas surface
+        borderRadius: BorderRadius.circular(42),
+        boxShadow: [
+          BoxShadow(
+            color: _C.dark.withValues(alpha: 0.06), // Subtle depth dropping onto the warm wall
+            blurRadius: 32,
+            offset: const Offset(0, 12),
+          ),
+        ],
+        border: Border.all(
+          color: _C.white, // Bright edge separation
+          width: 3.5,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(38),
+        child: Column(
+          children: [
+            Expanded(child: _buildPhaseContent()),
+            _buildProgressDots(),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ─────── TOP BAR ────────
   Widget _buildTopBar() {
     final progress = (_letterIndex + 1) / activeLessons.length;
 
     return Container(
-      color: _C.bg,
+      color: moduleType == 'rhymes' ? Colors.transparent : _C.bg,
       padding: const EdgeInsets.fromLTRB(12, 10, 20, 10),
       child: Row(
         children: [
@@ -828,28 +972,40 @@ void _selectOption(int index) {
                         switch (_phase) {
                           case _Phase.intro:     _speakIntro();    break;
                           case _Phase.mcq:       _speakMcq();      break;
-                          case _Phase.feedback:  _speakFeedback(); break;
+                          case _Phase.feedback:
+                            if (_isCorrect) {
+                              _speakFeedback();
+                            } else if (_aiExplanation != null) {
+                              _speak(_aiExplanation!);
+                            } else {
+                              _speakFeedback();
+                            }
+                            break;
                         }
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                            horizontal: 11, vertical: 5),
                         decoration: BoxDecoration(
-                          color: _C.blue.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
+                          color: _C.teal.withValues(alpha: 0.09),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: _C.teal.withValues(alpha: 0.28),
+                            width: 1.0,
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.volume_up_rounded,
-                                size: 14, color: _C.blue),
-                            const SizedBox(width: 3),
+                            const Icon(Icons.record_voice_over_rounded,
+                                size: 13, color: _C.teal),
+                            const SizedBox(width: 4),
                             Text(
-                              'Replay',
+                              'Hear again',
                               style: GoogleFonts.nunito(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
-                                color: _C.blue,
+                                color: _C.teal,
                               ),
                             ),
                           ],
@@ -893,17 +1049,25 @@ void _selectOption(int index) {
     );
   }
 
-  // ─────── AVATAR + SPEECH BUBBLE ────────
-  Widget _buildAvatarSection() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+  // ─────── TUTOR CORNER ────────
+  Widget _buildTutorCorner() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      decoration: BoxDecoration(
+        color: _C.white.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(36),
+        border: Border.all(
+          color: _C.white.withValues(alpha: 0.8),
+          width: 1.5,
+        ),
+      ),
       child: Column(
         children: [
           AnimatedBuilder(
             animation: _bounceY,
             builder: (_, child) => Transform.translate(
-              offset:
-                  Offset(0, _phase == _Phase.intro ? _bounceY.value : 0),
+              offset: Offset(0, _phase == _Phase.intro ? _bounceY.value : 0),
               child: child,
             ),
             child: AnimatedSwitcher(
@@ -913,6 +1077,23 @@ void _selectOption(int index) {
                 child: FadeTransition(opacity: anim, child: child),
               ),
               child: _buildAvatarCircle(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(
+              color: _C.purple.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '✨ Your Tutor',
+              style: GoogleFonts.nunito(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: _C.purple,
+                letterSpacing: 0.5,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -953,31 +1134,47 @@ void _selectOption(int index) {
 
     return Container(
       key: ValueKey('$_letterIndex-$_phase'),
-      width: 120,
-      height: 120,
+      width: 130,
+      height: 130,
       decoration: BoxDecoration(
-        color: _C.white,
         shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            shadowColor.withValues(alpha: 0.20),
+            shadowColor.withValues(alpha: 0.04),
+          ],
+        ),
         boxShadow: [
           BoxShadow(
-            color: shadowColor.withValues(alpha: 0.35),
-            blurRadius: 28,
+            color: shadowColor.withValues(alpha: 0.28),
+            blurRadius: 34,
             offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: Center(
-        child: isEmoji
-            ? Text(content, style: const TextStyle(fontSize: 64))
-            : Text(
-                content,
-                style: GoogleFonts.nunito(
-                  fontSize: 72,
-                  fontWeight: FontWeight.w900,
-                  color: _C.coral,
-                  height: 1.0,
+      child: Container(
+        margin: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: _C.white,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: shadowColor.withValues(alpha: 0.22),
+            width: 2.0,
+          ),
+        ),
+        child: Center(
+          child: isEmoji
+              ? Text(content, style: const TextStyle(fontSize: 60))
+              : Text(
+                  content,
+                  style: GoogleFonts.nunito(
+                    fontSize: 66,
+                    fontWeight: FontWeight.w900,
+                    color: _C.coral,
+                    height: 1.0,
+                  ),
                 ),
-              ),
+        ),
       ),
     );
   }
@@ -987,14 +1184,14 @@ void _selectOption(int index) {
       case _Phase.intro:
         if (_lesson.module == 'rhymes') return _lesson.prompt;
         return _lesson.module == 'alphabet'
-            ? 'This is the letter ${_lesson.title}! Say it with me!'
-            : 'Let\'s learn ${_lesson.title}!';
+            ? 'Here\'s the letter ${_lesson.title}! Let\'s learn it together! 🎓'
+            : 'Today we\'re learning about ${_lesson.title}! 🌈';
       case _Phase.mcq:
         return _lesson.prompt;
       case _Phase.feedback:
-        if (_isCorrect) return 'Amazing! 🌟 You got it right!';
-        if (_loadingExplanation) return 'Hmm, let me explain... 🤔';
-        return _aiExplanation ?? 'Let\'s try again!';
+        if (_isCorrect) return 'You nailed it! 🌟 I\'m so proud of you!';
+        if (_loadingExplanation) return 'Hmm, let me think... I\'ll help you! 🤔';
+        return _aiExplanation ?? 'No worries! Every great learner makes mistakes. Let\'s try again! 💛';
     }
   }
 
@@ -1035,40 +1232,95 @@ void _selectOption(int index) {
             child: Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: _C.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: _C.coral.withValues(alpha: 0.12),
-                    blurRadius: 20,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+                color: _C.teal.withValues(alpha: 0.03),
+                borderRadius: BorderRadius.circular(28),
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(_lesson.emoji,
-                      style: const TextStyle(fontSize: 64)),
-                  const SizedBox(height: 12),
-                  Text(
-                    _lesson.title,
-                    style: GoogleFonts.nunito(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w900,
-                      color: _C.dark,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: Column(
+                  children: [
+                    // ── Classroom accent strip
+                    Container(
+                      height: 5,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF9B6BFF), Color(0xFF4AC8FF)],
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _lesson.prompt,
-                    style: GoogleFonts.nunito(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: _C.muted,
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _C.yellow.withValues(alpha: 0.20),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              "TODAY'S LESSON",
+                              style: GoogleFonts.nunito(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                color: const Color(0xFFB8860B),
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(_lesson.emoji,
+                              style: const TextStyle(fontSize: 64)),
+                          const SizedBox(height: 12),
+                          Text(
+                            _lesson.title,
+                            style: GoogleFonts.nunito(
+                              fontSize: 36,
+                              fontWeight: FontWeight.w900,
+                              color: _C.dark,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 28),
+                            child: Text(
+                              _lesson.prompt,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.nunito(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: _C.muted,
+                                height: 1.45,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text('✦',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFFCCAA44))),
+                              SizedBox(width: 6),
+                              Text('✦',
+                                  style: TextStyle(
+                                      fontSize: 17,
+                                      color: Color(0xFFCCAA44))),
+                              SizedBox(width: 6),
+                              Text('✦',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFFCCAA44))),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -1077,7 +1329,7 @@ void _selectOption(int index) {
             label: "I got it! Let's answer →",
             onTap: _goToMcq,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -1153,7 +1405,7 @@ void _selectOption(int index) {
             label: _isLastLetter ? 'Finish rhyme! 🎉' : 'Next line →',
             onTap: _goToMcq,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -1162,29 +1414,56 @@ void _selectOption(int index) {
   // ── MCQ ──
   Widget _buildMcqContent() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _lesson.prompt,
-            style: GoogleFonts.nunito(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-              color: _C.dark,
+          // ── Question prompt card
+          Container(
+            width: double.infinity,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: _C.blue.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('🤔', style: TextStyle(fontSize: 22)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _lesson.prompt,
+                    style: GoogleFonts.nunito(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: _C.dark,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 14),
-          ...List.generate(_lesson.options.length, (i) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _OptionButton(
-                label: _lesson.options[i],
-                state: _OptionState.idle,
-                onTap: () => _selectOption(i),
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                children: List.generate(_lesson.options.length, (i) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _OptionButton(
+                      label: _lesson.options[i],
+                      state: _OptionState.idle,
+                      onTap: () => _selectOption(i),
+                    ),
+                  );
+                }),
               ),
-            );
-          }),
+            ),
+          ),
         ],
       ),
     );
@@ -1197,18 +1476,72 @@ void _selectOption(int index) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Emotional feedback banner
+          Container(
+            width: double.infinity,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: _isCorrect
+                  ? _C.green.withValues(alpha: 0.09)
+                  : _C.yellow.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: _isCorrect
+                    ? _C.green.withValues(alpha: 0.30)
+                    : const Color(0xFFFFB76C).withValues(alpha: 0.40),
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              children: [
+                Text(_isCorrect ? '🌟' : '💛',
+                    style: const TextStyle(fontSize: 22)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _isCorrect ? 'Wonderful!' : 'Almost there!',
+                        style: GoogleFonts.nunito(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: _isCorrect
+                              ? _C.green
+                              : const Color(0xFFD4891A),
+                        ),
+                      ),
+                      Text(
+                        _isCorrect
+                            ? 'You got it right! Keep going 🎉'
+                            : 'Great try — here\'s the answer below!',
+                        style: GoogleFonts.nunito(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: _C.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
           Text(
             _lesson.prompt,
             style: GoogleFonts.nunito(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-              color: _C.dark,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: _C.muted,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           // Scrollable options — prevents overflow when explanation is long
-          Flexible(
+          Expanded(
             child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: List.generate(_lesson.options.length, (i) {
@@ -1233,7 +1566,7 @@ void _selectOption(int index) {
               ),
             ),
           ),
-
+          const SizedBox(height: 12),
           _isLastLetter
               ? _GreenButton(
                   label: "I'm done! 🎉",
@@ -1255,7 +1588,7 @@ void _selectOption(int index) {
                   label: 'Next Letter →',
                   onTap: _goToNextLetter,
                 ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -1309,15 +1642,16 @@ class _SpeechBubble extends StatelessWidget {
         Container(
           width: double.infinity,
           padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: _C.white,
-            borderRadius: BorderRadius.circular(18),
+            color: _C.cream,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _C.warmBorder, width: 1.2),
             boxShadow: [
               BoxShadow(
-                color: _C.muted.withValues(alpha: 0.18),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+                color: _C.coral.withValues(alpha: 0.07),
+                blurRadius: 16,
+                offset: const Offset(0, 5),
               ),
             ],
           ),
@@ -1325,16 +1659,16 @@ class _SpeechBubble extends StatelessWidget {
             text,
             textAlign: TextAlign.center,
             style: GoogleFonts.nunito(
-              fontSize: 14,
+              fontSize: 14.5,
               fontWeight: FontWeight.w700,
               color: _C.dark,
-              height: 1.45,
+              height: 1.5,
             ),
           ),
         ),
         CustomPaint(
           size: const Size(20, 10),
-          painter: _TrianglePainter(color: _C.white),
+          painter: _TrianglePainter(color: _C.cream),
         ),
       ],
     );
@@ -1382,28 +1716,44 @@ class _OptionButton extends StatelessWidget {
 
     switch (state) {
       case _OptionState.correct:
-        bg        = _C.green.withValues(alpha: 0.12);
+        bg        = _C.green.withValues(alpha: 0.10);
         border    = _C.green;
-        textColor = _C.green;
+        textColor = const Color(0xFF1E8A55); // deeper green — readable on light bg
         break;
       case _OptionState.wrong:
-        bg        = _C.coral.withValues(alpha: 0.10);
+        bg        = _C.coral.withValues(alpha: 0.08);
         border    = _C.coral;
         textColor = _C.coral;
         break;
       case _OptionState.idle:
-        bg        = _C.white;
-        border    = _C.muted.withValues(alpha: 0.35);
+        bg        = _C.teal.withValues(alpha: 0.03);
+        border    = _C.teal.withValues(alpha: 0.15);
         textColor = _C.dark;
         break;
     }
 
     final Widget trailing = switch (state) {
-      _OptionState.correct => const Text('✅',
-          style: TextStyle(fontSize: 18)),
-      _OptionState.wrong   => const Text('❌',
-          style: TextStyle(fontSize: 18)),
-      _OptionState.idle    => const SizedBox.shrink(),
+      _OptionState.correct => Container(
+          width: 28,
+          height: 28,
+          decoration: const BoxDecoration(
+            color: _C.green,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.check_rounded,
+              color: Colors.white, size: 16),
+        ),
+      _OptionState.wrong => Container(
+          width: 28,
+          height: 28,
+          decoration: const BoxDecoration(
+            color: _C.coral,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.close_rounded,
+              color: Colors.white, size: 16),
+        ),
+      _OptionState.idle => const SizedBox.shrink(),
     };
 
     return Material(
@@ -1460,12 +1810,13 @@ class _GreenButton extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           gradient: const LinearGradient(
-            colors: [Color(0xFF7DDFAA), _C.green],
+            // EduranceColors.secondary → primary
+            colors: [Color(0xFF6AECE1), Color(0xFF26CCC2)],
           ),
           boxShadow: [
             BoxShadow(
-              color: _C.green.withValues(alpha: 0.40),
-              blurRadius: 18,
+              color: Color(0xFF26CCC2).withValues(alpha: 0.38),
+              blurRadius: 20,
               offset: const Offset(0, 7),
             ),
           ],
