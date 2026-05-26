@@ -9,24 +9,34 @@ import '../../services/ai/openai_service.dart';
 import '../../data/lesson_data.dart';
 import '../../models/lesson.dart';
 import '../../services/analytics/analytics_service.dart';
-// EduranceColors palette values are mirrored in _C below (see comments)
 
 // ─────────────────────────────────────────────
-//  BRAND TOKENS
+//  BRAND TOKENS (Edurance Palette + Classroom Warmth - v0 Enhanced)
 // ─────────────────────────────────────────────
 class _C {
-  static const purple    = Color(0xFF9B6BFF);
-  static const yellow    = Color(0xFFFFD94A);
-  static const blue      = Color(0xFF4AC8FF);
-  static const coral     = Color(0xFFFF6B6B);    // = EduranceColors.error
-  static const green     = Color(0xFF59D98E);    // = EduranceColors.success
-  static const teal      = Color(0xFF26CCC2);    // = EduranceColors.primary
-  static const bg        = Color(0xFFFFFDF7);    // = EduranceColors.background
-  static const dark      = Color(0xFF22324A);    // = EduranceColors.textPrimary
-  static const muted     = Color(0xFF7A869A);    // = EduranceColors.textMuted
-  static const white     = Colors.white;
-  static const cream     = Color(0xFFFFF8F3);    // warm classroom cream
-  static const warmBorder = Color(0xFFFFE4C4);  // warm peach border
+  // Primary Edurance colors
+  static const teal = Color(0xFF26CCC2); // Primary teal
+  static const aqua = Color(0xFF6AECE1); // Secondary aqua
+  static const yellow = Color(0xFFFFF57E); // Highlight yellow
+  static const orange = Color(0xFFFFB76C); // Accent orange
+  static const bg = Color(0xFFFFFDF7); // Background cream
+  static const dark = Color(0xFF22324A); // Text primary
+
+  // Extended classroom palette
+  static const coral = Color(0xFFFF6B6B);
+  static const green = Color(0xFF59D98E);
+  static const purple = Color(0xFF9B6BFF);
+  static const blue = Color(0xFF4AC8FF);
+  static const muted = Color(0xFF7A869A);
+  static const white = Colors.white;
+
+  // v0: Warm classroom atmosphere colors
+  static const cream = Color(0xFFFFF8F3); // Warm speech bubble
+  static const warmBorder = Color(0xFFFFE4C4); // Peach border
+  static const peachGlow = Color(0xFFFFF0E5); // Soft peach background
+  static const canvasInner = Color(0xFFFFFBF5); // Learning stage interior
+  static const woodAccent = Color(0xFFE8D4C4); // Subtle wood tone
+  static const softShadow = Color(0x12000000); // Very soft shadows
 }
 
 // ─────────────────────────────────────────────
@@ -47,9 +57,9 @@ class TeachingScreen extends StatefulWidget {
 class _TeachingScreenState extends State<TeachingScreen>
     with TickerProviderStateMixin {
   // ── Lesson state
-  int    _letterIndex    = 0;
-  _Phase _phase          = _Phase.intro;
-  int?   _selectedOption;
+  int _letterIndex = 0;
+  _Phase _phase = _Phase.intro;
+  int? _selectedOption;
 
   bool _moduleIntroSpoken = false;
 
@@ -65,61 +75,58 @@ class _TeachingScreenState extends State<TeachingScreen>
   // ── Initialization guard
   bool _initialized = false;
 
-
-
-
-
   // ── AI explanation state
   String? _aiExplanation;
   bool _loadingExplanation = false;
 
   late List<Lesson> activeLessons;
   late String moduleType;
-@override
-void didChangeDependencies() {
-  super.didChangeDependencies();
 
-  // Prevent re-initialization on subsequent didChangeDependencies calls
-  if (_initialized) return;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
 
-  final extra = GoRouterState.of(context).extra;
+    // Prevent re-initialization on subsequent didChangeDependencies calls
+    if (_initialized) return;
 
-  if (extra is Map) {
-    final map = Map<String, String>.from(extra as Map);
-    moduleType = map['module'] ?? 'rhymes';
-    final rhymeId = map['rhymeId'] ?? '';
+    final extra = GoRouterState.of(context).extra;
 
-    activeLessons = rhymeLessons
-        .where((l) => l.id.startsWith('${rhymeId}_line_'))
-        .toList();
-  } else {
-    moduleType = (extra as String?) ?? 'alphabet';
+    if (extra is Map) {
+      final map = Map<String, String>.from(extra as Map);
+      moduleType = map['module'] ?? 'rhymes';
+      final rhymeId = map['rhymeId'] ?? '';
 
-    switch (moduleType) {
-      case 'numbers':
-        activeLessons = numberLessons;
-        break;
-      case 'colors':
-        activeLessons = colorLessons;
-        break;
-      case 'shapes':
-        activeLessons = shapeLessons;
-        break;
-      case 'alphabet':
-      default:
-        activeLessons = alphabetLessons;
-        break;
+      activeLessons = rhymeLessons
+          .where((l) => l.id.startsWith('${rhymeId}_line_'))
+          .toList();
+    } else {
+      moduleType = (extra as String?) ?? 'alphabet';
+
+      switch (moduleType) {
+        case 'numbers':
+          activeLessons = numberLessons;
+          break;
+        case 'colors':
+          activeLessons = colorLessons;
+          break;
+        case 'shapes':
+          activeLessons = shapeLessons;
+          break;
+        case 'alphabet':
+        default:
+          activeLessons = alphabetLessons;
+          break;
+      }
     }
+
+    // Reset intro speech when module changes
+    _moduleIntroSpoken = false;
+
+    _initialized = true;
+
+    // Start audio + analytics AFTER moduleType and activeLessons are ready
+    _resumeAndStartAudio();
   }
-
-  // ✅ RESET intro speech when module changes
-  _moduleIntroSpoken = false;
-
-  _initialized = true;
-
-  // Start audio + analytics AFTER moduleType and activeLessons are ready
-  _resumeAndStartAudio();
-}
 
   Lesson get _lesson => activeLessons[_letterIndex];
 
@@ -152,62 +159,92 @@ void didChangeDependencies() {
 
   Object _avatarKey = Object();
 
-late final AnimationController _bounceCtrl;
-late final Animation<double> _bounceY;
-late final ConfettiController _confettiController;
-late final AnimationController _bgCtrl;
+  late final AnimationController _bounceCtrl;
+  late final Animation<double> _bounceY;
+  late final ConfettiController _confettiController;
+  late final AnimationController _bgCtrl;
 
-@override
-void initState() {
-  super.initState();
+  @override
+  void initState() {
+    super.initState();
 
-  // ── Bounce animation initialization (fixes LateInitializationError)
-  _bounceCtrl = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  );
+    _bounceCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
 
-  _bounceY = Tween<double>(
-    begin: 0,
-    end: -10,
-  ).animate(
-    CurvedAnimation(
-      parent: _bounceCtrl,
-      curve: Curves.easeInOut,
-    ),
-  );
+    _bounceY = Tween<double>(
+      begin: 0,
+      end: -10,
+    ).animate(
+      CurvedAnimation(
+        parent: _bounceCtrl,
+        curve: Curves.easeInOut,
+      ),
+    );
 
-  _bounceCtrl.repeat(reverse: true);
+    _bounceCtrl.repeat(reverse: true);
 
-  _confettiController = ConfettiController(duration: const Duration(seconds: 2));
+    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
 
-  _bgCtrl = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 10),
-  )..repeat(reverse: true);
-}
+    _bgCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    )..repeat(reverse: true);
+  }
 
-/// Restores the next incomplete alphabet lesson index from Supabase metadata
-/// then starts lesson audio for that correct letter.
-Future<void> _resumeAndStartAudio() async {
-  final user =
-      await Supabase.instance.client.auth.getUser();
+  Future<void> _resumeAndStartAudio() async {
+    final user = await Supabase.instance.client.auth.getUser();
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  final metadata =
-      user.user?.userMetadata ?? {};
+    final metadata = user.user?.userMetadata ?? {};
 
-  final completed =
-      metadata["${moduleType}_completedLessons"];
+    final completed = metadata["${moduleType}_completedLessons"];
 
-  if (completed == null) {
-    // first-time learner → start from first lesson
+    if (completed == null) {
+      debugPrint('Starting analytics session');
+      _sessionStartedAt = DateTime.now();
+      _sessionId = await AnalyticsService.startSession(
+        lessonId: activeLessons[_letterIndex].id,
+        subject: moduleType,
+      );
+      debugPrint('Analytics session created: $_sessionId');
+
+      debugPrint('Starting lesson audio');
+      try {
+        await _startLessonAudio();
+      } catch (e) {
+        debugPrint('Lesson audio failed: $e');
+      }
+      return;
+    }
+
+    final completedLessons = List<String>.from(completed);
+
+    final nextIndex = activeLessons.indexWhere(
+      (lesson) => !completedLessons.contains(lesson.id),
+    );
+
+    if (!mounted) return;
+
+    if (nextIndex == -1) {
+      setState(() => _letterIndex = activeLessons.length - 1);
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _showCompletionDialog(),
+      );
+      return;
+    }
+
+    if (nextIndex != _letterIndex) {
+      setState(() => _letterIndex = nextIndex);
+    }
+
     debugPrint('Starting analytics session');
     _sessionStartedAt = DateTime.now();
     _sessionId = await AnalyticsService.startSession(
       lessonId: activeLessons[_letterIndex].id,
-      subject:  moduleType,
+      subject: moduleType,
     );
     debugPrint('Analytics session created: $_sessionId');
 
@@ -217,75 +254,20 @@ Future<void> _resumeAndStartAudio() async {
     } catch (e) {
       debugPrint('Lesson audio failed: $e');
     }
-    return;
   }
 
-  final completedLessons =
-      List<String>.from(completed);
-
-  final nextIndex = activeLessons.indexWhere(
-    (lesson) =>
-        !completedLessons.contains(lesson.id),
-  );
-
-  if (!mounted) return;
-
-  if (nextIndex == -1) {
-    // All lessons completed
-    setState(() => _letterIndex = activeLessons.length - 1);
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _showCompletionDialog(),
-    );
-    return;
-  }
-
-  if (nextIndex != _letterIndex) {
-    setState(() => _letterIndex = nextIndex);
-  }
-
-  debugPrint('Starting analytics session');
-  _sessionStartedAt = DateTime.now();
-  _sessionId = await AnalyticsService.startSession(
-    lessonId: activeLessons[_letterIndex].id,
-    subject:  moduleType,
-  );
-  debugPrint('Analytics session created: $_sessionId');
-
-  debugPrint('Starting lesson audio');
-  try {
-    await _startLessonAudio();
-  } catch (e) {
-    debugPrint('Lesson audio failed: $e');
-  }
-}
-
-
-
-  /// Fetches the fresh resume index from Supabase, sets up TTS,
-  /// then speaks the intro for the correct letter — in that order.
-
-  /// Returns the next incomplete letter index, or null if all are done.
-  /// Returns 0 if no completedLessons metadata exists yet.
   Future<int?> _fetchResumeIndex() async {
-    final response =
-        await Supabase.instance.client.auth.getUser();
-    final completed =
-        response.user?.userMetadata?['${moduleType}_completedLessons'];
+    final response = await Supabase.instance.client.auth.getUser();
+    final completed = response.user?.userMetadata?['${moduleType}_completedLessons'];
 
-    if (completed == null) return 0; // first-time user → start from A
-
+    if (completed == null) return 0;
     final completedList = List<String>.from(completed as List);
     final nextIndex = activeLessons.indexWhere(
       (lesson) => !completedList.contains(lesson.id),
     );
-
-    return nextIndex == -1 ? null : nextIndex; // null = all done
+    return nextIndex == -1 ? null : nextIndex;
   }
 
-
-
-  /// Speaks the intro for the current lesson (called after index is set).
-  /// For rhymes, also schedules automatic progression to the next line.
   Future<void> _startLessonAudio() async {
     if (moduleType == 'rhymes') {
       await _speakIntroAndAutoAdvance();
@@ -294,24 +276,19 @@ Future<void> _resumeAndStartAudio() async {
     }
   }
 
-
-
-  /// Rhyme-only: narrates the current line, waits 1.2 s,
-  /// then auto-advances — unless the user already tapped manually.
   Future<void> _speakIntroAndAutoAdvance() async {
     _autoPlaying = true;
     await _speakIntro();
 
-    // Short pause so the child can absorb the line before moving on.
     await Future.delayed(const Duration(milliseconds: 1200));
 
-    if (!mounted || !_autoPlaying) return; // manual tap already handled it
+    if (!mounted || !_autoPlaying) return;
     _autoPlaying = false;
-    _goToMcq(); // handles rhyme save + next-line / completion
+    _goToMcq();
   }
 
   void _showCompletionDialog() {
-    if (_completionShown) return; // prevent double-dialog race
+    if (_completionShown) return;
     _completionShown = true;
 
     if (_lesson.module == 'rhymes') {
@@ -368,7 +345,7 @@ Future<void> _resumeAndStartAudio() async {
                       style: GoogleFonts.nunito(
                         fontWeight: FontWeight.w800,
                         fontSize: 18,
-                        color: const Color(0xFFF2994A), // Deep orange-yellow
+                        color: const Color(0xFFF2994A),
                       ),
                     ),
                   ],
@@ -390,8 +367,8 @@ Future<void> _resumeAndStartAudio() async {
                 onTap: () {
                   if (_sessionId != null) {
                     AnalyticsService.completeSession(
-                      sessionId:        _sessionId!,
-                      score:            _isCorrect ? 1 : 0,
+                      sessionId: _sessionId!,
+                      score: _isCorrect ? 1 : 0,
                       timeSpentSeconds: DateTime.now()
                           .difference(_sessionStartedAt)
                           .inSeconds,
@@ -437,11 +414,10 @@ Future<void> _resumeAndStartAudio() async {
         actions: [
           TextButton(
             onPressed: () {
-              // ── Analytics: complete session on module completion
               if (_sessionId != null) {
                 AnalyticsService.completeSession(
-                  sessionId:        _sessionId!,
-                  score:            _isCorrect ? 1 : 0,
+                  sessionId: _sessionId!,
+                  score: _isCorrect ? 1 : 0,
                   timeSpentSeconds: DateTime.now()
                       .difference(_sessionStartedAt)
                       .inSeconds,
@@ -464,77 +440,61 @@ Future<void> _resumeAndStartAudio() async {
     );
   }
 
-
-
-Future<void> _speak(String text) async {
-  await Future.delayed(
-    const Duration(milliseconds: 300),
-  );
-
-  await OpenAIService
-      .speakWithOpenAI(text);
-}
-
-Future<void> _speakIntro() async {
-  final l = _lesson;
-
-  switch (l.module) {
-    case 'alphabet':
-
-      if (!_moduleIntroSpoken) {
-        await _speak('Let’s learn alphabets.');
-        await Future.delayed(const Duration(milliseconds: 300));
-        _moduleIntroSpoken = true;
-      }
-
-      await _speak('This is the letter ${l.title}.');
-      break;
-
-    case 'numbers':
-
-      if (!_moduleIntroSpoken) {
-        await _speak('Let’s learn numbers.');
-        await Future.delayed(const Duration(milliseconds: 300));
-        _moduleIntroSpoken = true;
-      }
-
-      await _speak('This is number ${l.title}.');
-      break;
-
-    case 'colors':
-
-      if (!_moduleIntroSpoken) {
-        await _speak('Let’s learn colors.');
-        await Future.delayed(const Duration(milliseconds: 300));
-        _moduleIntroSpoken = true;
-      }
-
-      await _speak('This is ${l.title}.');
-      break;
-
-    case 'shapes':
-
-      if (!_moduleIntroSpoken) {
-        await _speak('Let’s learn shapes.');
-        await Future.delayed(const Duration(milliseconds: 300));
-        _moduleIntroSpoken = true;
-      }
-
-      await _speak('This is a ${l.title}.');
-      break;
-
-    case 'rhymes':
-
-      if (!_moduleIntroSpoken) {
-        await _speak("Let's learn ${l.title}!");
-        await Future.delayed(const Duration(milliseconds: 300));
-        _moduleIntroSpoken = true;
-      }
-
-      await _speak(l.prompt);
-      break;
+  Future<void> _speak(String text) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    await OpenAIService.speakWithOpenAI(text);
   }
-}
+
+  Future<void> _speakIntro() async {
+    final l = _lesson;
+
+    switch (l.module) {
+      case 'alphabet':
+        if (!_moduleIntroSpoken) {
+          await _speak('Let’s learn alphabets.');
+          await Future.delayed(const Duration(milliseconds: 300));
+          _moduleIntroSpoken = true;
+        }
+        await _speak('This is the letter ${l.title}.');
+        break;
+
+      case 'numbers':
+        if (!_moduleIntroSpoken) {
+          await _speak('Let’s learn numbers.');
+          await Future.delayed(const Duration(milliseconds: 300));
+          _moduleIntroSpoken = true;
+        }
+        await _speak('This is number ${l.title}.');
+        break;
+
+      case 'colors':
+        if (!_moduleIntroSpoken) {
+          await _speak('Let’s learn colors.');
+          await Future.delayed(const Duration(milliseconds: 300));
+          _moduleIntroSpoken = true;
+        }
+        await _speak('This is ${l.title}.');
+        break;
+
+      case 'shapes':
+        if (!_moduleIntroSpoken) {
+          await _speak('Let’s learn shapes.');
+          await Future.delayed(const Duration(milliseconds: 300));
+          _moduleIntroSpoken = true;
+        }
+        await _speak('This is a ${l.title}.');
+        break;
+
+      case 'rhymes':
+        if (!_moduleIntroSpoken) {
+          await _speak("Let's learn ${l.title}!");
+          await Future.delayed(const Duration(milliseconds: 300));
+          _moduleIntroSpoken = true;
+        }
+        await _speak(l.prompt);
+        break;
+    }
+  }
 
   Future<void> _speakMcq() async {
     await _speak(_lesson.prompt);
@@ -548,19 +508,17 @@ Future<void> _speakIntro() async {
     }
   }
 
-@override
-void dispose() {
-  _bounceCtrl.dispose();
-  _confettiController.dispose();
-  _bgCtrl.dispose();
-  super.dispose();
-}
+  @override
+  void dispose() {
+    _bounceCtrl.dispose();
+    _confettiController.dispose();
+    _bgCtrl.dispose();
+    super.dispose();
+  }
 
-  // ── Phase transitions
   void _goToMcq() {
-    // Rhymes have no MCQ — advance directly to the next line.
     if (_lesson.module == 'rhymes') {
-      _autoPlaying = false; // cancel any pending auto-advance
+      _autoPlaying = false;
       _saveCompletedLesson(_lesson.id);
       if (_isLastLetter) {
         _showCompletionDialog();
@@ -570,77 +528,70 @@ void dispose() {
       return;
     }
     setState(() {
-      _phase     = _Phase.mcq;
+      _phase = _Phase.mcq;
       _avatarKey = Object();
     });
     _speakMcq();
   }
 
-void _selectOption(int index) {
+  void _selectOption(int index) {
     if (_phase != _Phase.mcq) return;
     setState(() {
       _selectedOption = index;
-      _phase          = _Phase.feedback;
-      _avatarKey      = Object();
-      _aiExplanation  = null;
+      _phase = _Phase.feedback;
+      _avatarKey = Object();
+      _aiExplanation = null;
     });
 
     final isCorrect = _isOptionCorrect(index);
 
     if (isCorrect) {
-      // Correct — persist completed letter to Supabase metadata
       _saveCompletedLesson(_lesson.id);
-      // Correct — just speak immediately
       _speakFeedback();
     } else {
-      // Wrong — fetch AI explanation first, then speak it
       _fetchAndSpeakExplanation(index);
     }
   }
 
-Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
-  setState(() {
-    _loadingExplanation = true;
-    _aiExplanation = null;
-  });
+  Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
+    setState(() {
+      _loadingExplanation = true;
+      _aiExplanation = null;
+    });
 
-  try {
-    final explanation =
-        await OpenAIService.getWrongAnswerExplanation(
-      lessonTitle: _lesson.title,
-      module: _lesson.module,
-      correctAnswer: _lesson.options.firstWhere(
-        (opt) => _isOptionCorrect(
-          _lesson.options.indexOf(opt),
+    try {
+      final explanation = await OpenAIService.getWrongAnswerExplanation(
+        lessonTitle: _lesson.title,
+        module: _lesson.module,
+        correctAnswer: _lesson.options.firstWhere(
+          (opt) => _isOptionCorrect(_lesson.options.indexOf(opt)),
         ),
-      ),
-      wrongAnswer: _lesson.options[wrongIndex],
-      question: _lesson.prompt,
-    );
+        wrongAnswer: _lesson.options[wrongIndex],
+        question: _lesson.prompt,
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _aiExplanation = explanation;
-      _loadingExplanation = false;
-      _avatarKey = Object();
-    });
+      setState(() {
+        _aiExplanation = explanation;
+        _loadingExplanation = false;
+        _avatarKey = Object();
+      });
 
-    await _speak(explanation);
-  } catch (e) {
-    debugPrint('AI explanation failed: $e');
+      await _speak(explanation);
+    } catch (e) {
+      debugPrint('AI explanation failed: $e');
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _loadingExplanation = false;
-      _aiExplanation =
-          "That's okay! Let's learn together and try again.";
-    });
+      setState(() {
+        _loadingExplanation = false;
+        _aiExplanation = "That's okay! Let's learn together and try again.";
+      });
 
-    await _speak(_aiExplanation!);
+      await _speak(_aiExplanation!);
+    }
   }
-}
 
   Future<void> _saveCompletedLesson(String letter) async {
     final user = Supabase.instance.client.auth.currentUser;
@@ -651,7 +602,7 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
         ? List<String>.from(existing as List)
         : <String>[];
 
-    if (lessons.contains(letter)) return; // avoid duplicates
+    if (lessons.contains(letter)) return;
     lessons.add(letter);
 
     await Supabase.instance.client.auth.updateUser(
@@ -662,14 +613,14 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
   }
 
   void _goToNextLetter() {
-    _autoPlaying = false; // cancel pending auto-advance before state change
+    _autoPlaying = false;
     setState(() {
       if (!_isLastLetter) _letterIndex++;
-      _phase          = _Phase.intro;
+      _phase = _Phase.intro;
       _selectedOption = null;
-      _avatarKey      = Object();
+      _avatarKey = Object();
     });
-    _startLessonAudio(); // rhymes: auto-advances again; others: speakIntro
+    _startLessonAudio();
   }
 
   // ─────────────────────────────────────────
@@ -703,7 +654,7 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
               alignment: Alignment.topCenter,
               child: ConfettiWidget(
                 confettiController: _confettiController,
-                blastDirection: pi / 2, // fall downwards
+                blastDirection: pi / 2,
                 maxBlastForce: 5,
                 minBlastForce: 2,
                 emissionFrequency: 0.05,
@@ -796,78 +747,83 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
     );
   }
 
-  // ─────── CLASSROOM ATMOSPHERE ────────
+  // ─────── CLASSROOM ATMOSPHERE (v0 Enhanced) ────────
   Widget _buildClassroomBackground() {
     return Stack(
       children: [
-        // Base warm gradient to make it immersive
+        // BASE: Multi-stop gradient for depth
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
+              stops: [0.0, 0.4, 0.7, 1.0],
               colors: [
-                Color(0xFFFFF0E5), // Distinct warm cream top
-                Color(0xFFFDF4ED), // Gently lighter bottom
+                Color(0xFFFFFDF7), // Pure cream at top
+                Color(0xFFFFF8F0), // Warm peach mid
+                Color(0xFFFFF4E8), // Deeper peach-cream
+                Color(0xFFF5F0EA), // Grounded bottom
               ],
             ),
           ),
         ),
-        // Soft clouds/blobs
+        // FLOATING GLOW: Top-left warm blob
         Positioned(
-          top: -60,
+          top: -100,
           left: -80,
           child: Container(
-            width: 300,
-            height: 300,
+            width: 350,
+            height: 350,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _C.purple.withValues(alpha: 0.06),
-              boxShadow: [
-                BoxShadow(
-                  color: _C.purple.withValues(alpha: 0.04),
-                  blurRadius: 60,
-                  spreadRadius: 20,
-                )
-              ]
+              gradient: RadialGradient(
+                colors: [
+                  _C.orange.withValues(alpha: 0.08),
+                  _C.orange.withValues(alpha: 0.02),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.5, 1.0],
+              ),
             ),
           ),
         ),
+        // FLOATING GLOW: Bottom-right teal atmosphere
         Positioned(
-          bottom: -100,
+          bottom: -150,
           right: -100,
           child: Container(
-            width: 400,
-            height: 400,
+            width: 450,
+            height: 450,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _C.teal.withValues(alpha: 0.06),
-              boxShadow: [
-                BoxShadow(
-                  color: _C.teal.withValues(alpha: 0.04),
-                  blurRadius: 80,
-                  spreadRadius: 40,
-                )
-              ]
+              gradient: RadialGradient(
+                colors: [
+                  _C.teal.withValues(alpha: 0.06),
+                  _C.teal.withValues(alpha: 0.02),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.5, 1.0],
+              ),
             ),
           ),
         ),
+        // FLOATING GLOW: Center-right yellow warmth
         Positioned(
-          top: 250,
-          right: -60,
+          top: 200,
+          right: -40,
           child: Container(
-            width: 250,
-            height: 250,
+            width: 280,
+            height: 280,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _C.yellow.withValues(alpha: 0.05),
-              boxShadow: [
-                BoxShadow(
-                  color: _C.yellow.withValues(alpha: 0.03),
-                  blurRadius: 60,
-                  spreadRadius: 20,
-                )
-              ]
+              gradient: RadialGradient(
+                colors: [
+                  _C.yellow.withValues(alpha: 0.06),
+                  _C.yellow.withValues(alpha: 0.02),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.5, 1.0],
+              ),
             ),
           ),
         ),
@@ -875,233 +831,111 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
     );
   }
 
-  // ─────── LEARNING STAGE ────────
-  Widget _buildLearningStage() {
-    if (moduleType == 'rhymes') {
-      return Column(
-        children: [
-          Expanded(child: _buildPhaseContent()),
-          _buildProgressDots(),
-          const SizedBox(height: 12),
-        ],
-      );
-    }
-    
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-      decoration: BoxDecoration(
-        color: _C.bg, // Edurance Background (FFFDF7) acts as the Canvas surface
-        borderRadius: BorderRadius.circular(42),
-        boxShadow: [
-          BoxShadow(
-            color: _C.dark.withValues(alpha: 0.06), // Subtle depth dropping onto the warm wall
-            blurRadius: 32,
-            offset: const Offset(0, 12),
-          ),
-        ],
-        border: Border.all(
-          color: _C.white, // Bright edge separation
-          width: 3.5,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(38),
-        child: Column(
-          children: [
-            Expanded(child: _buildPhaseContent()),
-            _buildProgressDots(),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─────── TOP BAR ────────
-  Widget _buildTopBar() {
-    final progress = (_letterIndex + 1) / activeLessons.length;
-
-    return Container(
-      color: moduleType == 'rhymes' ? Colors.transparent : _C.bg,
-      padding: const EdgeInsets.fromLTRB(12, 10, 20, 10),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 48,
-            height: 48,
-            child: Material(
-              color: _C.green.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: () {
-                 
-                  context.go(AppRoutes.modules);
-                },
-                child: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: _C.green,
-                  size: 20,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      '${moduleType.toUpperCase()} LESSONS',
-                      style: GoogleFonts.nunito(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        color: _C.dark,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Tap to replay speech
-                    GestureDetector(
-                      onTap: () {
-                        // ── Analytics: count replay
-                        if (_sessionId != null) {
-                          AnalyticsService.incrementReplayCount(_sessionId!);
-                        }
-                        switch (_phase) {
-                          case _Phase.intro:     _speakIntro();    break;
-                          case _Phase.mcq:       _speakMcq();      break;
-                          case _Phase.feedback:
-                            if (_isCorrect) {
-                              _speakFeedback();
-                            } else if (_aiExplanation != null) {
-                              _speak(_aiExplanation!);
-                            } else {
-                              _speakFeedback();
-                            }
-                            break;
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 11, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: _C.teal.withValues(alpha: 0.09),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: _C.teal.withValues(alpha: 0.28),
-                            width: 1.0,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.record_voice_over_rounded,
-                                size: 13, color: _C.teal),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Hear again',
-                              style: GoogleFonts.nunito(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: _C.teal,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 7,
-                          backgroundColor:
-                              _C.green.withValues(alpha: 0.15),
-                          valueColor:
-                              const AlwaysStoppedAnimation<Color>(_C.green),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${_letterIndex + 1}/${activeLessons.length}',
-                      style: GoogleFonts.nunito(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: _C.green,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─────── TUTOR CORNER ────────
+  // ─────── TUTOR CORNER (v0 Enhanced) ────────
   Widget _buildTutorCorner() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      decoration: BoxDecoration(
-        color: _C.white.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(36),
-        border: Border.all(
-          color: _C.white.withValues(alpha: 0.8),
-          width: 1.5,
-        ),
-      ),
-      child: Column(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Stack(
         children: [
-          AnimatedBuilder(
-            animation: _bounceY,
-            builder: (_, child) => Transform.translate(
-              offset: Offset(0, _phase == _Phase.intro ? _bounceY.value : 0),
-              child: child,
-            ),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 320),
-              transitionBuilder: (child, anim) => ScaleTransition(
-                scale: anim,
-                child: FadeTransition(opacity: anim, child: child),
-              ),
-              child: _buildAvatarCircle(),
-            ),
-          ),
-          const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: _C.purple.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              '✨ Your Tutor',
-              style: GoogleFonts.nunito(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: _C.purple,
-                letterSpacing: 0.5,
+              borderRadius: BorderRadius.circular(32),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  _C.woodAccent.withValues(alpha: 0.5),
+                  _C.warmBorder.withValues(alpha: 0.3),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 280),
-            child: _SpeechBubble(
-              key: ValueKey(_avatarKey),
-              text: _speechBubbleText(),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              decoration: BoxDecoration(
+                color: _C.white.withValues(alpha: 0.85),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: _C.orange.withValues(alpha: 0.08),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  AnimatedBuilder(
+                    animation: _bounceY,
+                    builder: (_, child) => Transform.translate(
+                      offset: Offset(0, _phase == _Phase.intro ? _bounceY.value : 0),
+                      child: child,
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 320),
+                      transitionBuilder: (child, anim) => ScaleTransition(
+                        scale: anim,
+                        child: FadeTransition(opacity: anim, child: child),
+                      ),
+                      child: _buildAvatarCircle(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          _C.teal.withValues(alpha: 0.15),
+                          _C.aqua.withValues(alpha: 0.10),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _C.teal.withValues(alpha: 0.25),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: _C.teal,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: _C.teal.withValues(alpha: 0.5),
+                                blurRadius: 6,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Your Tutor',
+                          style: GoogleFonts.nunito(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: _C.teal,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 280),
+                    child: _SpeechBubble(
+                      key: ValueKey(_avatarKey),
+                      text: _speechBubbleText(),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -1128,49 +962,53 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
         break;
     }
 
-    final Color shadowColor = _phase == _Phase.feedback
+    final Color glowColor = _phase == _Phase.feedback
         ? (_isCorrect ? _C.green : _C.coral)
-        : _C.coral;
+        : _C.teal;
 
     return Container(
       key: ValueKey('$_letterIndex-$_phase'),
-      width: 130,
-      height: 130,
+      width: 120,
+      height: 120,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [
-            shadowColor.withValues(alpha: 0.20),
-            shadowColor.withValues(alpha: 0.04),
-          ],
-        ),
         boxShadow: [
           BoxShadow(
-            color: shadowColor.withValues(alpha: 0.28),
-            blurRadius: 34,
-            offset: const Offset(0, 10),
+            color: glowColor.withValues(alpha: 0.25),
+            blurRadius: 30,
+            spreadRadius: 5,
+          ),
+          BoxShadow(
+            color: _C.dark.withValues(alpha: 0.08),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Container(
-        margin: const EdgeInsets.all(5),
         decoration: BoxDecoration(
-          color: _C.white,
           shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [
+              _C.white,
+              _C.cream,
+            ],
+            stops: const [0.7, 1.0],
+          ),
           border: Border.all(
-            color: shadowColor.withValues(alpha: 0.22),
-            width: 2.0,
+            color: glowColor.withValues(alpha: 0.35),
+            width: 3,
           ),
         ),
         child: Center(
           child: isEmoji
-              ? Text(content, style: const TextStyle(fontSize: 60))
+              ? Text(content, style: const TextStyle(fontSize: 52))
               : Text(
                   content,
                   style: GoogleFonts.nunito(
-                    fontSize: 66,
+                    fontSize: 58,
                     fontWeight: FontWeight.w900,
-                    color: _C.coral,
+                    color: _C.teal,
                     height: 1.0,
                   ),
                 ),
@@ -1195,6 +1033,93 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
     }
   }
 
+  // ─────── LEARNING STAGE (v0 Enhanced) ────────
+  Widget _buildLearningStage() {
+    if (moduleType == 'rhymes') {
+      return Column(
+        children: [
+          Expanded(child: _buildPhaseContent()),
+          _buildProgressDots(),
+          const SizedBox(height: 12),
+        ],
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(36),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  _C.teal.withValues(alpha: 0.15),
+                  _C.aqua.withValues(alpha: 0.08),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _C.teal.withValues(alpha: 0.12),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
+                BoxShadow(
+                  color: _C.dark.withValues(alpha: 0.04),
+                  blurRadius: 40,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: Container(
+              margin: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: _C.canvasInner,
+                borderRadius: BorderRadius.circular(32),
+                border: Border.all(
+                  color: _C.white,
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: _C.dark.withValues(alpha: 0.03),
+                    blurRadius: 20,
+                    spreadRadius: -5,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: Column(
+                  children: [
+                    Container(
+                      height: 4,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            _C.teal.withValues(alpha: 0.4),
+                            _C.aqua.withValues(alpha: 0.6),
+                            _C.yellow.withValues(alpha: 0.4),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Expanded(child: _buildPhaseContent()),
+                    _buildProgressDots(),
+                    const SizedBox(height: 10),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ─────── PHASE CONTENT ────────
   Widget _buildPhaseContent() {
     return AnimatedSwitcher(
@@ -1203,15 +1128,14 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
         position: Tween<Offset>(
           begin: const Offset(0.08, 0),
           end: Offset.zero,
-        ).animate(
-            CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+        ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
         child: FadeTransition(opacity: anim, child: child),
       ),
       child: KeyedSubtree(
         key: ValueKey('$_letterIndex-$_phase'),
         child: switch (_phase) {
-          _Phase.intro    => _buildIntroContent(),
-          _Phase.mcq      => _buildMcqContent(),
+          _Phase.intro => _buildIntroContent(),
+          _Phase.mcq => _buildMcqContent(),
           _Phase.feedback => _buildFeedbackContent(),
         },
       ),
@@ -1239,7 +1163,6 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
                 borderRadius: BorderRadius.circular(28),
                 child: Column(
                   children: [
-                    // ── Classroom accent strip
                     Container(
                       height: 5,
                       decoration: const BoxDecoration(
@@ -1335,7 +1258,6 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
     );
   }
 
-  // ── RHYME KARAOKE INTRO ──
   Widget _buildRhymeIntroContent() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
@@ -1354,7 +1276,7 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
                     ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
                     child: ScaleTransition(
                       scale: Tween<double>(begin: 0.95, end: 1.0).animate(
-                        CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)
+                        CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
                       ),
                       child: child,
                     ),
@@ -1362,7 +1284,7 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
                 );
               },
               child: Container(
-                key: ValueKey(_letterIndex), // Triggers animation on line change
+                key: ValueKey(_letterIndex),
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                 decoration: BoxDecoration(
@@ -1418,11 +1340,9 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Question prompt card
           Container(
             width: double.infinity,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: _C.blue.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(20),
@@ -1476,11 +1396,9 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Emotional feedback banner
           Container(
             width: double.infinity,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: _isCorrect
                   ? _C.green.withValues(alpha: 0.09)
@@ -1538,7 +1456,6 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
             ),
           ),
           const SizedBox(height: 10),
-          // Scrollable options — prevents overflow when explanation is long
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
@@ -1571,11 +1488,10 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
               ? _GreenButton(
                   label: "I'm done! 🎉",
                   onTap: () {
-                    // ── Analytics: complete session
                     if (_sessionId != null) {
                       AnalyticsService.completeSession(
-                        sessionId:        _sessionId!,
-                        score:            _isCorrect ? 1 : 0,
+                        sessionId: _sessionId!,
+                        score: _isCorrect ? 1 : 0,
                         timeSpentSeconds: DateTime.now()
                             .difference(_sessionStartedAt)
                             .inSeconds,
@@ -1602,14 +1518,14 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: List.generate(activeLessons.length, (i) {
-            final isCurrent   = i == _letterIndex;
+            final isCurrent = i == _letterIndex;
             final isCompleted = i < _letterIndex;
 
             return AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeInOut,
               margin: const EdgeInsets.symmetric(horizontal: 3),
-              width:  isCurrent ? 20 : 8,
+              width: isCurrent ? 20 : 8,
               height: isCurrent ? 10 : 8,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
@@ -1625,10 +1541,181 @@ Future<void> _fetchAndSpeakExplanation(int wrongIndex) async {
       ),
     );
   }
+
+  // ─────── TOP BAR (v0 Enhanced) ────────
+  Widget _buildTopBar() {
+    final progress = (_letterIndex + 1) / activeLessons.length;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 20, 12),
+      decoration: BoxDecoration(
+        color: _C.bg.withValues(alpha: 0.95),
+        boxShadow: [
+          BoxShadow(
+            color: _C.dark.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: _C.cream,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: _C.warmBorder.withValues(alpha: 0.5),
+                width: 1,
+              ),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => context.go(AppRoutes.modules),
+                child: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: _C.muted,
+                  size: 18,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      moduleType.toUpperCase(),
+                      style: GoogleFonts.nunito(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: _C.dark,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: () {
+                        if (_sessionId != null) {
+                          AnalyticsService.incrementReplayCount(_sessionId!);
+                        }
+                        switch (_phase) {
+                          case _Phase.intro:
+                            _speakIntro();
+                            break;
+                          case _Phase.mcq:
+                            _speakMcq();
+                            break;
+                          case _Phase.feedback:
+                            if (_isCorrect) {
+                              _speakFeedback();
+                            } else if (_aiExplanation != null) {
+                              _speak(_aiExplanation!);
+                            } else {
+                              _speakFeedback();
+                            }
+                            break;
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _C.yellow.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: _C.orange.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.volume_up_rounded,
+                              size: 14,
+                              color: const Color(0xFFD4891A),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Hear again',
+                              style: GoogleFonts.nunito(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFFD4891A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: 8,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(4),
+                          color: _C.teal.withValues(alpha: 0.12),
+                        ),
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: progress,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(4),
+                              gradient: LinearGradient(
+                                colors: [_C.teal, _C.aqua],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _C.teal.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${_letterIndex + 1}/${activeLessons.length}',
+                        style: GoogleFonts.nunito(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: _C.teal,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────
-//  SPEECH BUBBLE
+//  SPEECH BUBBLE (v0 Enhanced)
 // ─────────────────────────────────────────────
 class _SpeechBubble extends StatelessWidget {
   final String text;
@@ -1641,17 +1728,31 @@ class _SpeechBubble extends StatelessWidget {
       children: [
         Container(
           width: double.infinity,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           decoration: BoxDecoration(
-            color: _C.cream,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _C.warmBorder, width: 1.2),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                _C.cream,
+                const Color(0xFFFFF5ED),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: _C.warmBorder,
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
-                color: _C.coral.withValues(alpha: 0.07),
-                blurRadius: 16,
-                offset: const Offset(0, 5),
+                color: _C.orange.withValues(alpha: 0.10),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
+              ),
+              BoxShadow(
+                color: _C.dark.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
@@ -1659,7 +1760,7 @@ class _SpeechBubble extends StatelessWidget {
             text,
             textAlign: TextAlign.center,
             style: GoogleFonts.nunito(
-              fontSize: 14.5,
+              fontSize: 15,
               fontWeight: FontWeight.w700,
               color: _C.dark,
               height: 1.5,
@@ -1667,8 +1768,11 @@ class _SpeechBubble extends StatelessWidget {
           ),
         ),
         CustomPaint(
-          size: const Size(20, 10),
-          painter: _TrianglePainter(color: _C.cream),
+          size: const Size(24, 12),
+          painter: _TrianglePainter(
+            fillColor: const Color(0xFFFFF5ED),
+            borderColor: _C.warmBorder,
+          ),
         ),
       ],
     );
@@ -1676,32 +1780,45 @@ class _SpeechBubble extends StatelessWidget {
 }
 
 class _TrianglePainter extends CustomPainter {
-  final Color color;
-  const _TrianglePainter({required this.color});
+  final Color fillColor;
+  final Color borderColor;
+
+  const _TrianglePainter({
+    required this.fillColor,
+    required this.borderColor,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
-    final path  = Path()
+    final fillPaint = Paint()..color = fillColor;
+    final borderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final path = Path()
       ..moveTo(0, 0)
       ..lineTo(size.width, 0)
       ..lineTo(size.width / 2, size.height)
       ..close();
-    canvas.drawPath(path, paint);
+
+    canvas.drawPath(path, fillPaint);
+    canvas.drawPath(path, borderPaint);
   }
 
   @override
-  bool shouldRepaint(_TrianglePainter old) => old.color != color;
+  bool shouldRepaint(_TrianglePainter old) =>
+      old.fillColor != fillColor || old.borderColor != borderColor;
 }
 
 // ─────────────────────────────────────────────
-//  OPTION BUTTON
+//  OPTION BUTTON (v0 Enhanced)
 // ─────────────────────────────────────────────
 enum _OptionState { idle, correct, wrong }
 
 class _OptionButton extends StatelessWidget {
-  final String        label;
-  final _OptionState  state;
+  final String label;
+  final _OptionState state;
   final VoidCallback? onTap;
 
   const _OptionButton({
@@ -1713,22 +1830,38 @@ class _OptionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color bg, border, textColor;
+    final List<BoxShadow> shadows;
 
     switch (state) {
       case _OptionState.correct:
-        bg        = _C.green.withValues(alpha: 0.10);
-        border    = _C.green;
-        textColor = const Color(0xFF1E8A55); // deeper green — readable on light bg
+        bg = _C.green.withValues(alpha: 0.12);
+        border = _C.green;
+        textColor = const Color(0xFF1E8A55);
+        shadows = [
+          BoxShadow(
+            color: _C.green.withValues(alpha: 0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ];
         break;
       case _OptionState.wrong:
-        bg        = _C.coral.withValues(alpha: 0.08);
-        border    = _C.coral;
+        bg = _C.coral.withValues(alpha: 0.08);
+        border = _C.coral;
         textColor = _C.coral;
+        shadows = [];
         break;
       case _OptionState.idle:
-        bg        = _C.teal.withValues(alpha: 0.03);
-        border    = _C.teal.withValues(alpha: 0.15);
+        bg = _C.white;
+        border = _C.warmBorder;
         textColor = _C.dark;
+        shadows = [
+          BoxShadow(
+            color: _C.dark.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ];
         break;
     }
 
@@ -1736,12 +1869,19 @@ class _OptionButton extends StatelessWidget {
       _OptionState.correct => Container(
           width: 28,
           height: 28,
-          decoration: const BoxDecoration(
-            color: _C.green,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [_C.green, const Color(0xFF45C77B)],
+            ),
             shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: _C.green.withValues(alpha: 0.3),
+                blurRadius: 8,
+              ),
+            ],
           ),
-          child: const Icon(Icons.check_rounded,
-              color: Colors.white, size: 16),
+          child: const Icon(Icons.check_rounded, color: Colors.white, size: 16),
         ),
       _OptionState.wrong => Container(
           width: 28,
@@ -1750,40 +1890,45 @@ class _OptionButton extends StatelessWidget {
             color: _C.coral,
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.close_rounded,
-              color: Colors.white, size: 16),
+          child: const Icon(Icons.close_rounded, color: Colors.white, size: 16),
         ),
       _OptionState.idle => const SizedBox.shrink(),
     };
 
-    return Material(
-      color: bg,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
+    return Container(
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Container(
-          height: 56,
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: border, width: 1.8),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: GoogleFonts.nunito(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: textColor,
+        boxShadow: shadows,
+      ),
+      child: Material(
+        color: bg,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Container(
+            height: 60,
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: border, width: 1.5),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: GoogleFonts.nunito(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: textColor,
+                    ),
                   ),
                 ),
-              ),
-              trailing,
-            ],
+                trailing,
+              ],
+            ),
           ),
         ),
       ),
@@ -1795,7 +1940,7 @@ class _OptionButton extends StatelessWidget {
 //  GREEN GRADIENT BUTTON
 // ─────────────────────────────────────────────
 class _GreenButton extends StatelessWidget {
-  final String       label;
+  final String label;
   final VoidCallback onTap;
 
   const _GreenButton({required this.label, required this.onTap});
@@ -1810,7 +1955,6 @@ class _GreenButton extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           gradient: const LinearGradient(
-            // EduranceColors.secondary → primary
             colors: [Color(0xFF6AECE1), Color(0xFF26CCC2)],
           ),
           boxShadow: [
