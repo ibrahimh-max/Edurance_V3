@@ -20,6 +20,7 @@ class _C {
   static const dark   = Color(0xFF2D2D3A);
   static const muted  = Color(0xFF9E9EA8);
   static const white  = Colors.white;
+  static const purple = Color(0xFF9B6BFF);
 
   // Page-accent pairs  [bg-gradient top, bg-gradient bottom, accent]
   static const pageAccents = [
@@ -27,20 +28,23 @@ class _C {
     [Color(0xFFD6F4FF), Color(0xFFB8EEFF), blue],     // page 1 – gender
     [Color(0xFFD5F8E5), Color(0xFFB6F0CF), green],    // page 2 – age/class
     [Color(0xFFFFDFDF), Color(0xFFFFCCCC), coral],    // page 3 – mobile
+    [Color(0xFFE5D4FF), Color(0xFFD4B8FF), purple],   // page 4 – email/pass
   ];
 
-  static const mascots = ['🦁', '🐨', '🦊', '🐸'];
+  static const mascots = ['🦁', '🐨', '🦊', '🐸', '🦄'];
   static const pageTitles = [
     'What\'s your name?',
     'I am a…',
     'How old are you?',
     'Parent\'s number',
+    'Create Account',
   ];
   static const pageSubtitles = [
     'Tell us so we can cheer for you!',
     'Pick one — you\'re awesome either way!',
     'So we can match you with the right lessons!',
     'We\'ll only use this in emergencies 🛡️',
+    'To save your child\'s progress!',
   ];
 }
 
@@ -68,6 +72,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   // ── Form data
   final _nameController    = TextEditingController();
   final _mobileController  = TextEditingController();
+  final _emailController   = TextEditingController();
+  final _passwordController = TextEditingController();
   String? _gender;       // 'Boy' | 'Girl' | 'Other'
   int    _age   = 7;
   int?   _grade;         // 1–5
@@ -91,7 +97,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _progressValue = Tween<double>(begin: 0.25, end: 0.25).animate(
+    _progressValue = Tween<double>(begin: 0.2, end: 0.2).animate(
       CurvedAnimation(parent: _progressAnim, curve: Curves.easeInOutCubic),
     );
 
@@ -129,6 +135,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
       ref.read(signupProvider.notifier)
           .updateParentMobile(_mobileController.text.trim());
     });
+    _emailController.addListener(_rebuild);
+    _emailController.addListener(() {
+      ref.read(signupProvider.notifier)
+          .updateParentEmail(_emailController.text.trim());
+    });
+    _passwordController.addListener(_rebuild);
+    _passwordController.addListener(() {
+      ref.read(signupProvider.notifier)
+          .updatePassword(_passwordController.text);
+    });
   }
 
   void _rebuild() => setState(() {});
@@ -141,6 +157,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
     _ctaShimmer.dispose();
     _nameController.dispose();
     _mobileController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -155,6 +173,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
         return _grade != null;
       case 3:
         return _mobileController.text.trim().length == 10;
+      case 4:
+        return _emailController.text.trim().isNotEmpty && _passwordController.text.length >= 6;
       default:
         return false;
     }
@@ -162,7 +182,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
 
   // ── Navigation
   void _animateProgress(int toPage) {
-    final target = (toPage + 1) / 4;
+    final target = (toPage + 1) / 5;
     _progressValue = Tween<double>(
       begin: _progressValue.value,
       end: target,
@@ -176,7 +196,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
     if (!_isCurrentPageValid) return;
     _triggerMascotWiggle();
     final next = _currentPage + 1;
-    if (next >= 4) {
+    if (next >= 5) {
       _onSubmit();
       return;
     }
@@ -208,52 +228,54 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
     }).catchError((_) {/* cancelled – ignore */});
   }
 
-Future<void> _onSubmit() async {
+  bool _isSubmitting = false;
 
-  final signupState = ref.read(signupProvider);
+  Future<void> _onSubmit() async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
 
-  final email =
-      '${signupState.parentMobile}@edurance.app';
+    final signupState = ref.read(signupProvider);
+    final supabase = Supabase.instance.client;
 
-  final password =
-      signupState.parentMobile;
+    try {
+      final response = await supabase.auth.signUp(
+        email: signupState.parentEmail,
+        password: signupState.password,
+        data: {
+          'child_name': signupState.childName,
+          'gender': signupState.gender,
+          'age': signupState.age,
+          'class_level': signupState.classLevel,
+          'parent_mobile': signupState.parentMobile,
+          'diagnostic_completed': false,
+        },
+      );
 
-  final supabase =
-      Supabase.instance.client;
+      if (response.user != null) {
+        await supabase.from('profiles').upsert({
+          'id': response.user!.id,
+          'email': signupState.parentEmail,
+          'child_name': signupState.childName,
+          'gender': signupState.gender,
+          'age': signupState.age,
+          'class_level': signupState.classLevel,
+          'parent_mobile': signupState.parentMobile,
+          'diagnostic_completed': false,
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      }
 
-  AuthResponse response;
-
-  try {
-
-    response =
-        await supabase.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
-
-  } catch (_) {
-
-    response =
-        await supabase.auth.signUp(
-      email: email,
-      password: password,
-      data: {
-        'childName': signupState.childName,
-        'gender': signupState.gender,
-        'age': signupState.age,
-        'classLevel': signupState.classLevel,
-        'parentMobile': signupState.parentMobile,
-        'diagnosticCompleted': false,
-      },
-    );
-
+      if (!mounted) return;
+      context.go(AppRoutes.diagnosticTest);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
-
-  if (!mounted) return;
-
-  context.go(AppRoutes.diagnosticTest);
-
-}
 
   // ─────────────────────────────────────────
   //  BUILD
@@ -293,6 +315,7 @@ Future<void> _onSubmit() async {
                     _PageWrapper(child: _buildPage1()),
                     _PageWrapper(child: _buildPage2()),
                     _PageWrapper(child: _buildPage3()),
+                    _PageWrapper(child: _buildPage4()),
                   ],
                 ),
               ),
@@ -340,7 +363,7 @@ Future<void> _onSubmit() async {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Step ${_currentPage + 1} of 4',
+                      'Step ${_currentPage + 1} of 5',
                       style: GoogleFonts.nunito(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -348,7 +371,7 @@ Future<void> _onSubmit() async {
                       ),
                     ),
                     Text(
-                      '${((_currentPage + 1) / 4 * 100).round()}%',
+                      '${((_currentPage + 1) / 5 * 100).round()}%',
                       style: GoogleFonts.nunito(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
@@ -440,8 +463,8 @@ Future<void> _onSubmit() async {
 
   // ─────── BOTTOM BAR (titles + CTA) ────────
   Widget _buildBottomBar(Color accent) {
-    final isLast   = _currentPage == 3;
-    final isValid  = _isCurrentPageValid;
+    final isLast   = _currentPage == 4;
+    final isValid  = _isCurrentPageValid && !_isSubmitting;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
@@ -453,7 +476,7 @@ Future<void> _onSubmit() async {
           // Step dots
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(4, (i) {
+            children: List.generate(5, (i) {
               final isActive = i == _currentPage;
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 350),
@@ -516,18 +539,24 @@ Future<void> _onSubmit() async {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  isLast ? 'Let\'s Go! 🚀' : 'Next',
-                  style: GoogleFonts.nunito(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: _isCurrentPageValid
-                        ? _C.white
-                        : _C.muted.withValues(alpha: 0.4),
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                if (!isLast) ...[
+                _isSubmitting
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                      )
+                    : Text(
+                        isLast ? 'Let\'s Go! 🚀' : 'Next',
+                        style: GoogleFonts.nunito(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: _isCurrentPageValid
+                              ? _C.white
+                              : _C.muted.withValues(alpha: 0.4),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                if (!isLast && !_isSubmitting) ...[
                   const SizedBox(width: 8),
                   Icon(
                     Icons.arrow_forward_rounded,
@@ -767,6 +796,53 @@ Future<void> _onSubmit() async {
       ),
     );
   }
+
+  // ═══════════════════════════════════════════
+  //  PAGE 4 — Parent Email & Password
+  // ═══════════════════════════════════════════
+  Widget _buildPage4() {
+    return _PageContent(
+      title: _C.pageTitles[4],
+      subtitle: _C.pageSubtitles[4],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _EduranceTextField(
+            controller: _emailController,
+            hint: 'Parent\'s Email',
+            icon: Icons.email_rounded,
+            accent: _C.purple,
+            keyboardType: TextInputType.emailAddress,
+          ),
+          const SizedBox(height: 16),
+          _EduranceTextField(
+            controller: _passwordController,
+            hint: 'Password (min 6 chars)',
+            icon: Icons.lock_rounded,
+            accent: _C.purple,
+            obscureText: true,
+          ),
+          const SizedBox(height: 24),
+          // Continue with Google placeholder
+          ElevatedButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.g_mobiledata_rounded, size: 28),
+            label: Text('Continue with Google', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: _C.dark,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(color: _C.muted.withValues(alpha: 0.2), width: 1.5),
+              ),
+              elevation: 0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -840,6 +916,7 @@ class _EduranceTextField extends StatelessWidget {
   final TextCapitalization textCapitalization;
   final int? maxLength;
   final List<TextInputFormatter>? inputFormatters;
+  final bool obscureText;
 
   const _EduranceTextField({
     required this.controller,
@@ -850,6 +927,7 @@ class _EduranceTextField extends StatelessWidget {
     this.textCapitalization = TextCapitalization.none,
     this.maxLength,
     this.inputFormatters,
+    this.obscureText = false,
   });
 
   @override
@@ -872,6 +950,7 @@ class _EduranceTextField extends StatelessWidget {
         textCapitalization: textCapitalization,
         maxLength: maxLength,
         inputFormatters: inputFormatters,
+        obscureText: obscureText,
         style: GoogleFonts.nunito(
           fontSize: 18,
           fontWeight: FontWeight.w700,
