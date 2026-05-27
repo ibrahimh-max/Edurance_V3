@@ -44,7 +44,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (user != null) {
       debugPrint('Startup: SplashScreen — user authenticated, hydrating session');
       await bootstrapSession(ref);
-      if (mounted) context.go(AppRoutes.modules);
+      
+      final profile = await Supabase.instance.client
+          .from('profiles')
+          .select('diagnostic_completed')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (mounted) {
+        if (profile != null && profile['diagnostic_completed'] == true) {
+          context.go(AppRoutes.modules);
+        } else {
+          context.go(AppRoutes.diagnosticTest);
+        }
+      }
     } else {
       debugPrint('Startup: SplashScreen — no user, navigating to login');
       if (mounted) context.go(AppRoutes.login);

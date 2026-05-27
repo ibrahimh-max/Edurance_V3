@@ -41,5 +41,9 @@ Future<void> bootstrapSession(WidgetRef ref) async {
       .read(signupProvider.notifier)
       .updateParentMobile((metadata['parentMobile'] as String?) ?? '');
 
+  ref
+      .read(signupProvider.notifier)
+      .updateParentEmail(user.email ?? '');
+
   debugPrint('Startup: Session hydrated — childName=${metadata['childName']}');
 }

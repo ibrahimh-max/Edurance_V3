@@ -111,13 +111,46 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  // Routes the user based on current Supabase session state.
-  void _onLogin() {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
-      context.go(AppRoutes.modules);
-    } else {
-      context.go(AppRoutes.signup);
+  bool _isLoading = false;
+
+  Future<void> _onLogin() async {
+    final email = _emailCtrl.text.trim();
+    final password = _passwordCtrl.text;
+    
+    if (email.isEmpty || password.isEmpty) return;
+
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await Supabase.instance.client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      if (!mounted) return;
+      if (response.user != null) {
+        final profile = await Supabase.instance.client
+            .from('profiles')
+            .select('diagnostic_completed')
+            .eq('id', response.user!.id)
+            .maybeSingle();
+            
+        if (!mounted) return;
+
+        if (profile != null && profile['diagnostic_completed'] == true) {
+          context.go(AppRoutes.modules);
+        } else {
+          context.go(AppRoutes.diagnosticTest);
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -407,17 +440,25 @@ class _LoginScreenState extends State<LoginScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  'Login',
-                  style: GoogleFonts.nunito(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                    letterSpacing: 0.5,
+                if (_isLoading)
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                  )
+                else ...[
+                  Text(
+                    'Login',
+                    style: GoogleFonts.nunito(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                const Text('🚀', style: TextStyle(fontSize: 20)),
+                  const SizedBox(width: 8),
+                  const Text('🚀', style: TextStyle(fontSize: 20)),
+                ],
               ],
             ),
           ),
