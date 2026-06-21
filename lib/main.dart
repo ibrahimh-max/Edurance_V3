@@ -9,7 +9,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   debugPrint('Startup: Supabase initializing');
-  GoogleFonts.config.allowRuntimeFetching = false;
+  GoogleFonts.config.allowRuntimeFetching = true;
   await Supabase.initialize(
     url: 'https://puxscqufuccztrwmibsk.supabase.co',
     anonKey:
