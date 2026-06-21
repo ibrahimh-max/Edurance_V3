@@ -1172,74 +1172,79 @@ class _TeachingScreenState extends State<TeachingScreen>
                       ),
                     ),
                     Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: _C.yellow.withValues(alpha: 0.20),
-                              borderRadius: BorderRadius.circular(20),
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _C.yellow.withValues(alpha: 0.20),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                "TODAY'S LESSON",
+                                style: GoogleFonts.nunito(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  color: const Color(0xFFB8860B),
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
                             ),
-                            child: Text(
-                              "TODAY'S LESSON",
+                            const SizedBox(height: 16),
+                            Text(_lesson.emoji,
+                                style: const TextStyle(fontSize: 64)),
+                            const SizedBox(height: 12),
+                            Text(
+                              _lesson.title,
                               style: GoogleFonts.nunito(
-                                fontSize: 10,
+                                fontSize: 36,
                                 fontWeight: FontWeight.w900,
-                                color: const Color(0xFFB8860B),
-                                letterSpacing: 1.2,
+                                color: _C.dark,
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(_lesson.emoji,
-                              style: const TextStyle(fontSize: 64)),
-                          const SizedBox(height: 12),
-                          Text(
-                            _lesson.title,
-                            style: GoogleFonts.nunito(
-                              fontSize: 36,
-                              fontWeight: FontWeight.w900,
-                              color: _C.dark,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 28),
-                            child: Text(
-                              _lesson.prompt,
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.nunito(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: _C.muted,
-                                height: 1.45,
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 28),
+                              child: Text(
+                                _lesson.prompt,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.nunito(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: _C.muted,
+                                  height: 1.45,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 20),
-                          const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text('✦',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: Color(0xFFCCAA44))),
-                              SizedBox(width: 6),
-                              Text('✦',
-                                  style: TextStyle(
-                                      fontSize: 17,
-                                      color: Color(0xFFCCAA44))),
-                              SizedBox(width: 6),
-                              Text('✦',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: Color(0xFFCCAA44))),
-                            ],
-                          ),
-                        ],
+                            const SizedBox(height: 20),
+                            const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('✦',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFFCCAA44))),
+                                SizedBox(width: 6),
+                                Text('✦',
+                                    style: TextStyle(
+                                        fontSize: 17,
+                                        color: Color(0xFFCCAA44))),
+                                SizedBox(width: 6),
+                                Text('✦',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFFCCAA44))),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
                       ),
                     ),
                   ],
