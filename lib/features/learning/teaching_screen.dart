@@ -635,18 +635,44 @@ class _TeachingScreenState extends State<TeachingScreen>
           if (moduleType == 'rhymes') _buildRhymeBackground(),
           if (moduleType != 'rhymes') _buildClassroomBackground(),
           SafeArea(
-            child: Column(
-              children: [
-                _buildTopBar(),
-                Expanded(
-                  child: Column(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Use scrollable layout on mobile / short viewports
+                final bool useScrollable = constraints.maxHeight < 700;
+                if (useScrollable) {
+                  return Column(
                     children: [
-                      _buildTutorCorner(),
-                      Expanded(child: _buildLearningStage()),
+                      _buildTopBar(),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _buildTutorCorner(),
+                              _buildLearningStage(scrollable: true),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
-                  ),
-                ),
-              ],
+                  );
+                }
+                // Desktop / large-screen layout: preserve existing Expanded behaviour
+                return Column(
+                  children: [
+                    _buildTopBar(),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          _buildTutorCorner(),
+                          Expanded(child: _buildLearningStage(scrollable: false)),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
           SafeArea(
@@ -1034,16 +1060,28 @@ class _TeachingScreenState extends State<TeachingScreen>
   }
 
   // ─────── LEARNING STAGE (v0 Enhanced) ────────
-  Widget _buildLearningStage() {
+  Widget _buildLearningStage({bool scrollable = false}) {
     if (moduleType == 'rhymes') {
+      if (scrollable) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildPhaseContent(scrollable: true),
+            _buildProgressDots(),
+            const SizedBox(height: 12),
+          ],
+        );
+      }
       return Column(
         children: [
-          Expanded(child: _buildPhaseContent()),
+          Expanded(child: _buildPhaseContent(scrollable: false)),
           _buildProgressDots(),
           const SizedBox(height: 12),
         ],
       );
     }
+
+    final phaseContent = _buildPhaseContent(scrollable: scrollable);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -1093,25 +1131,46 @@ class _TeachingScreenState extends State<TeachingScreen>
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(30),
-                child: Column(
-                  children: [
-                    Container(
-                      height: 4,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            _C.teal.withValues(alpha: 0.4),
-                            _C.aqua.withValues(alpha: 0.6),
-                            _C.yellow.withValues(alpha: 0.4),
-                          ],
-                        ),
+                child: scrollable
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Container(
+                            height: 4,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  _C.teal.withValues(alpha: 0.4),
+                                  _C.aqua.withValues(alpha: 0.6),
+                                  _C.yellow.withValues(alpha: 0.4),
+                                ],
+                              ),
+                            ),
+                          ),
+                          phaseContent,
+                          _buildProgressDots(),
+                          const SizedBox(height: 10),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          Container(
+                            height: 4,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  _C.teal.withValues(alpha: 0.4),
+                                  _C.aqua.withValues(alpha: 0.6),
+                                  _C.yellow.withValues(alpha: 0.4),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Expanded(child: phaseContent),
+                          _buildProgressDots(),
+                          const SizedBox(height: 10),
+                        ],
                       ),
-                    ),
-                    Expanded(child: _buildPhaseContent()),
-                    _buildProgressDots(),
-                    const SizedBox(height: 10),
-                  ],
-                ),
               ),
             ),
           ),
@@ -1121,7 +1180,7 @@ class _TeachingScreenState extends State<TeachingScreen>
   }
 
   // ─────── PHASE CONTENT ────────
-  Widget _buildPhaseContent() {
+  Widget _buildPhaseContent({bool scrollable = false}) {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
       transitionBuilder: (child, anim) => SlideTransition(
@@ -1134,124 +1193,122 @@ class _TeachingScreenState extends State<TeachingScreen>
       child: KeyedSubtree(
         key: ValueKey('$_letterIndex-$_phase'),
         child: switch (_phase) {
-          _Phase.intro => _buildIntroContent(),
-          _Phase.mcq => _buildMcqContent(),
-          _Phase.feedback => _buildFeedbackContent(),
+          _Phase.intro => _buildIntroContent(scrollable: scrollable),
+          _Phase.mcq => _buildMcqContent(scrollable: scrollable),
+          _Phase.feedback => _buildFeedbackContent(scrollable: scrollable),
         },
       ),
     );
   }
 
   // ── INTRO ──
-  Widget _buildIntroContent() {
+  Widget _buildIntroContent({bool scrollable = false}) {
     if (_lesson.module == 'rhymes') {
-      return _buildRhymeIntroContent();
+      return _buildRhymeIntroContent(scrollable: scrollable);
     }
+
+    // Shared inner scrollable body (used in both modes)
+    final innerBody = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: _C.yellow.withValues(alpha: 0.20),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            "TODAY'S LESSON",
+            style: GoogleFonts.nunito(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFFB8860B),
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(_lesson.emoji, style: const TextStyle(fontSize: 64)),
+        const SizedBox(height: 12),
+        Text(
+          _lesson.title,
+          style: GoogleFonts.nunito(
+            fontSize: 36,
+            fontWeight: FontWeight.w900,
+            color: _C.dark,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Text(
+            _lesson.prompt,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.nunito(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: _C.muted,
+              height: 1.45,
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('✦', style: TextStyle(fontSize: 11, color: Color(0xFFCCAA44))),
+            SizedBox(width: 6),
+            Text('✦', style: TextStyle(fontSize: 17, color: Color(0xFFCCAA44))),
+            SizedBox(width: 6),
+            Text('✦', style: TextStyle(fontSize: 11, color: Color(0xFFCCAA44))),
+          ],
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+
+    final decoratedBox = Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: _C.teal.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              height: 5,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF9B6BFF), Color(0xFF4AC8FF)],
+                ),
+              ),
+            ),
+            if (scrollable)
+              innerBody
+            else
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: innerBody,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       child: Column(
+        mainAxisSize: scrollable ? MainAxisSize.min : MainAxisSize.max,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: _C.teal.withValues(alpha: 0.03),
-                borderRadius: BorderRadius.circular(28),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(28),
-                child: Column(
-                  children: [
-                    Container(
-                      height: 5,
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Color(0xFF9B6BFF), Color(0xFF4AC8FF)],
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const SizedBox(height: 16),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: _C.yellow.withValues(alpha: 0.20),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                "TODAY'S LESSON",
-                                style: GoogleFonts.nunito(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w900,
-                                  color: const Color(0xFFB8860B),
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(_lesson.emoji,
-                                style: const TextStyle(fontSize: 64)),
-                            const SizedBox(height: 12),
-                            Text(
-                              _lesson.title,
-                              style: GoogleFonts.nunito(
-                                fontSize: 36,
-                                fontWeight: FontWeight.w900,
-                                color: _C.dark,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 28),
-                              child: Text(
-                                _lesson.prompt,
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.nunito(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: _C.muted,
-                                  height: 1.45,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text('✦',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        color: Color(0xFFCCAA44))),
-                                SizedBox(width: 6),
-                                Text('✦',
-                                    style: TextStyle(
-                                        fontSize: 17,
-                                        color: Color(0xFFCCAA44))),
-                                SizedBox(width: 6),
-                                Text('✦',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        color: Color(0xFFCCAA44))),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          scrollable ? decoratedBox : Expanded(child: decoratedBox),
           const SizedBox(height: 16),
           _GreenButton(
             label: "I got it! Let's answer →",
@@ -1263,70 +1320,72 @@ class _TeachingScreenState extends State<TeachingScreen>
     );
   }
 
-  Widget _buildRhymeIntroContent() {
+  Widget _buildRhymeIntroContent({bool scrollable = false}) {
+    final rhymeCard = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 600),
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.05),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.95, end: 1.0).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              ),
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        key: ValueKey(_letterIndex),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        decoration: BoxDecoration(
+          color: _C.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: _C.blue.withValues(alpha: 0.15),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: _C.purple.withValues(alpha: 0.05),
+              blurRadius: 40,
+              spreadRadius: 10,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _lesson.prompt,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.nunito(
+                fontSize: 32,
+                fontWeight: FontWeight.w900,
+                color: _C.dark,
+                height: 1.3,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       child: Column(
+        mainAxisSize: scrollable ? MainAxisSize.min : MainAxisSize.max,
         children: [
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 600),
-              transitionBuilder: (Widget child, Animation<double> animation) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.05),
-                      end: Offset.zero,
-                    ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-                    child: ScaleTransition(
-                      scale: Tween<double>(begin: 0.95, end: 1.0).animate(
-                        CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-                      ),
-                      child: child,
-                    ),
-                  ),
-                );
-              },
-              child: Container(
-                key: ValueKey(_letterIndex),
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-                decoration: BoxDecoration(
-                  color: _C.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _C.blue.withValues(alpha: 0.15),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                    ),
-                    BoxShadow(
-                      color: _C.purple.withValues(alpha: 0.05),
-                      blurRadius: 40,
-                      spreadRadius: 10,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _lesson.prompt,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.nunito(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w900,
-                        color: _C.dark,
-                        height: 1.3,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          scrollable ? rhymeCard : Expanded(child: rhymeCard),
           const SizedBox(height: 16),
           _GreenButton(
             label: _isLastLetter ? 'Finish rhyme! 🎉' : 'Next line →',
@@ -1339,10 +1398,25 @@ class _TeachingScreenState extends State<TeachingScreen>
   }
 
   // ── MCQ ──
-  Widget _buildMcqContent() {
+  Widget _buildMcqContent({bool scrollable = false}) {
+    final optionsList = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(_lesson.options.length, (i) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _OptionButton(
+            label: _lesson.options[i],
+            state: _OptionState.idle,
+            onTap: () => _selectOption(i),
+          ),
+        );
+      }),
+    );
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Column(
+        mainAxisSize: scrollable ? MainAxisSize.min : MainAxisSize.max,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
@@ -1372,33 +1446,52 @@ class _TeachingScreenState extends State<TeachingScreen>
             ),
           ),
           const SizedBox(height: 14),
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                children: List.generate(_lesson.options.length, (i) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _OptionButton(
-                      label: _lesson.options[i],
-                      state: _OptionState.idle,
-                      onTap: () => _selectOption(i),
-                    ),
-                  );
-                }),
+          // On mobile (scrollable) the outer SingleChildScrollView handles scrolling;
+          // on desktop we keep the inner Expanded + scroll.
+          if (scrollable)
+            optionsList
+          else
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: optionsList,
               ),
             ),
-          ),
         ],
       ),
     );
   }
 
   // ── FEEDBACK ──
-  Widget _buildFeedbackContent() {
+  Widget _buildFeedbackContent({bool scrollable = false}) {
+    final feedbackOptions = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: List.generate(_lesson.options.length, (i) {
+        final _OptionState state;
+        if (_isOptionCorrect(i)) {
+          state = _OptionState.correct;
+        } else if (i == _selectedOption) {
+          state = _OptionState.wrong;
+        } else {
+          state = _OptionState.idle;
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _OptionButton(
+            label: _lesson.options[i],
+            state: state,
+            onTap: null,
+          ),
+        );
+      }),
+    );
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
       child: Column(
+        mainAxisSize: scrollable ? MainAxisSize.min : MainAxisSize.max,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
@@ -1461,33 +1554,17 @@ class _TeachingScreenState extends State<TeachingScreen>
             ),
           ),
           const SizedBox(height: 10),
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: List.generate(_lesson.options.length, (i) {
-                  final _OptionState state;
-                  if (_isOptionCorrect(i)) {
-                    state = _OptionState.correct;
-                  } else if (i == _selectedOption) {
-                    state = _OptionState.wrong;
-                  } else {
-                    state = _OptionState.idle;
-                  }
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _OptionButton(
-                      label: _lesson.options[i],
-                      state: state,
-                      onTap: null,
-                    ),
-                  );
-                }),
+          // On mobile (scrollable) let the outer scroll view handle overflow;
+          // on desktop keep the inner Expanded + scroll.
+          if (scrollable)
+            feedbackOptions
+          else
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: feedbackOptions,
               ),
             ),
-          ),
           const SizedBox(height: 12),
           _isLastLetter
               ? _GreenButton(
