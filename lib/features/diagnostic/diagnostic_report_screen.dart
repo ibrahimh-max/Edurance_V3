@@ -212,7 +212,6 @@ class _DiagnosticReportScreenState extends State<DiagnosticReportScreen>
   }
 
 Future<void> _onStart() async {
-
   final supabase = Supabase.instance.client;
 
   final user = supabase.auth.currentUser;
@@ -222,21 +221,20 @@ Future<void> _onStart() async {
     return;
   }
 
+  // Keep auth metadata (optional)
   final metadata = <String, dynamic>{
     'diagnosticCompleted': true,
   };
 
-  // Use your existing scoring logic
+  // Existing scoring logic
   final state = GoRouterState.of(context);
   final answers = (state.extra as Map<int, int>?) ?? {};
   final results = _computeResults(answers);
 
   for (final result in results) {
-
     String level;
 
     switch (result.tier) {
-
       case _Tier.star:
         level = 'star';
         break;
@@ -246,34 +244,37 @@ Future<void> _onStart() async {
         break;
 
       case _Tier.learn:
-        level = 'learn';
-        break;
-
       default:
         level = 'learn';
-
+        break;
     }
 
     metadata['${result.name.toLowerCase()}Level'] = level;
-
   }
 
   try {
-
+    // Keep metadata update (optional)
     await supabase.auth.updateUser(
-
       UserAttributes(
         data: metadata,
       ),
-
     );
 
-  } catch (_) {}
+    // ⭐ THIS IS THE IMPORTANT PART ⭐
+    await supabase
+        .from('profiles')
+        .update({
+          'diagnostic_completed': true,
+        })
+        .eq('id', user.id);
+
+  } catch (e) {
+    debugPrint('Failed to save diagnostic completion: $e');
+  }
 
   if (!mounted) return;
 
   context.go(AppRoutes.modules);
-
 }
 
   // ─────── COMPUTE RESULTS FROM ANSWERS ────────
