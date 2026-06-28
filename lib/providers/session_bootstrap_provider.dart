@@ -19,31 +19,38 @@ Future<void> bootstrapSession(WidgetRef ref) async {
     return;
   }
 
-  final metadata = user.userMetadata ?? {};
+final profile = await Supabase.instance.client
+    .from('profiles')
+    .select()
+    .eq('id', user.id)
+    .maybeSingle();
 
-  ref
-      .read(signupProvider.notifier)
-      .updateChildName((metadata['childName'] as String?) ?? '');
+if (profile == null) {
+  debugPrint('Startup: Profile not found.');
+  return;
+}
 
-  ref
-      .read(signupProvider.notifier)
-      .updateGender((metadata['gender'] as String?) ?? '');
+ref.read(signupProvider.notifier)
+    .updateChildName(profile['child_name'] ?? '');
 
-  ref
-      .read(signupProvider.notifier)
-      .updateAge((metadata['age'] as num?)?.toInt() ?? 0);
+ref.read(signupProvider.notifier)
+    .updateGender(profile['gender'] ?? '');
 
-  ref
-      .read(signupProvider.notifier)
-      .updateClassLevel((metadata['classLevel'] as num?)?.toInt() ?? 0);
+ref.read(signupProvider.notifier)
+    .updateAge((profile['age'] ?? 0) as int);
 
-  ref
-      .read(signupProvider.notifier)
-      .updateParentMobile((metadata['parentMobile'] as String?) ?? '');
+ref.read(signupProvider.notifier)
+    .updateClassLevel((profile['class_level'] ?? 0) as int);
 
-  ref
-      .read(signupProvider.notifier)
-      .updateParentEmail(user.email ?? '');
+ref.read(signupProvider.notifier)
+    .updateParentMobile(profile['parent_mobile'] ?? '');
 
-  debugPrint('Startup: Session hydrated — childName=${metadata['childName']}');
+ref.read(signupProvider.notifier)
+    .updateParentEmail(user.email ?? '');
+
+debugPrint(
+  'Startup: Session hydrated from profiles table.',
+);
+
+debugPrint('Startup: Session hydrated from profiles table.');
 }
